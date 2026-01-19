@@ -1,0 +1,43 @@
+﻿<ArcGIS defaultAssembly="CLP.ADMSUpdatePlugin.dll" defaultNamespace="CLP.ADMSUpdatePlugin" xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
+  <AddInInfo id="{a9e43ee3-40ee-4d09-a2cb-759d8a125323}" version="1.3" desktopVersion="3.3.52636" product="ArcGISPro">
+    <Name>CLP.ADMSUpdatePlugin</Name>
+    <Description>CLP.ADMSUpdatePlugin description</Description>
+    <Image>Images\AddinDesktop32.png</Image>
+    <Author>user</Author>
+    <Company>Acme</Company>
+    <Date>11/13/2025 3:54:30 PM</Date>
+    <Subject>Framework</Subject>
+    <!-- Note subject can be one or more of these topics:
+                    Content, Framework, Editing, Geodatabase, Geometry, Geoprocessing, Layouts, Map Authoring, Map Exploration -->
+  </AddInInfo>
+  <modules>
+    <insertModule id="CLP.ADMSUpdatePlugin_Module" className="Module1" autoLoad="false" caption="Module1">
+      <!-- uncomment to have the control hosted on a separate tab-->
+      <tabs>
+        <!--<tab id="CLP.ADMSUpdatePlugin_Tab1" caption="New Tab">
+          <group refID="CLP.ADMSUpdatePlugin_Group1"/>
+        </tab>-->
+      </tabs>
+      <groups>
+        <!-- comment this out if you have no controls on the Addin tab to avoid
+              an empty group-->
+        <group id="CLP.ADMSUpdatePlugin_Group1" caption="Group 1" appearsOnAddInTab="true">
+          <!-- host controls within groups -->
+          <button refID="CLP_ADMSUpdatePlugin_ADMSUpdateDockpane_ShowButton" size="large" />
+        </group>
+      </groups>
+      <controls>
+        <!-- add your controls here -->
+        <button id="CLP_ADMSUpdatePlugin_ADMSUpdateDockpane_ShowButton" caption="Update ADMS" className="ADMSUpdateDockpane_ShowButton" loadOnClick="true" smallImage="GenericButtonPurple16" largeImage="GenericButtonPurple32">
+          <tooltip heading="Show Dockpane">
+            Update ADMS<disabledText /></tooltip>
+        </button>
+      </controls>
+      <dockPanes>
+        <dockPane id="CLP_ADMSUpdatePlugin_ADMSUpdateDockpane" caption="Update ADMS" className="ADMSUpdateDockpaneViewModel" dock="group" dockWith="esri_core_projectDockPane">
+          <content className="ADMSUpdateDockpaneView" />
+        </dockPane>
+      </dockPanes>
+    </insertModule>
+  </modules>
+</ArcGIS>
