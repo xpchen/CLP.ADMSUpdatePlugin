@@ -1,6 +1,7 @@
 ﻿using ArcGIS.Core.Data;
 using ArcGIS.Core.Data.UtilityNetwork;
 using ArcGIS.Desktop.Framework.Threading.Tasks;
+using ArcGIS.Desktop.Internal.Editing.COGO;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,25 +19,32 @@ namespace CLP.ADMSUpdatePlugin
                 return input;
 
             // 替换超过2个空格的部分为空
-            return Regex.Replace(input, @"\s{2,}", "");
+            return Regex.Replace(input, @"\s{2,}", " ").TrimEnd();
         }
 
-        public static string GetCableADMSName(SS_TO_SS_Model src, SS_TO_SS_Model des, FeatureSnapshot cable,bool isTemplate=false)
+        public static string GetCableADMSName(SS_TO_SS_Model src, SS_TO_SS_Model des, FeatureSnapshot cable, bool isTemplate=false)
         {
             string textA = ReplaceMultipleSpaces(src.SSNAME.Replace("S/S", ""));
             if (!String.IsNullOrEmpty(src.BB_NUMBER))
             {
                 textA += $" BD {src.BB_NUMBER}";
             }
+            textA = ReplaceMultipleSpaces(textA);
             if (textA.Length < 25)
             {
                 textA = textA.PadRight(25); // Pad the string to 25 characters
             }
             string textB = ReplaceMultipleSpaces(des.SSNAME.Replace("S/S", ""));
-            if (!String.IsNullOrEmpty(des.BB_NUMBER))
+            if (des.Source.AssetGroupName == "Transformer")
+            {
+                string txPart = String.IsNullOrEmpty(des.TX_NO) ? "" : $" D{des.TX_NO}";
+                textB += $" Tx{txPart}";
+            } 
+            if (!String.IsNullOrEmpty(des.BB_NUMBER) && des.Source.AssetGroupName != "Transformer")
             {
                 textB += $" BD {des.BB_NUMBER}";
             }
+            textB = ReplaceMultipleSpaces(textB);
             string textC = "";
             if (isTemplate)
             {
@@ -75,7 +83,11 @@ namespace CLP.ADMSUpdatePlugin
                 textA += $" B{src.BB_NUMBER}";
             }
             string textB = des.SSCODE;
-            if (!String.IsNullOrEmpty(des.BB_NUMBER))
+            if (des.Source.AssetGroupName == "Transformer")
+            {
+                textB += String.IsNullOrEmpty(des.TX_NO) ? " D1" : $" D{des.TX_NO}";
+            }
+            if (!String.IsNullOrEmpty(des.BB_NUMBER) && des.Source.AssetGroupName != "Transformer")
             {
                 textB += $" B{des.BB_NUMBER}";
             }
@@ -122,7 +134,7 @@ namespace CLP.ADMSUpdatePlugin
                         sBB_NUMBER = model.BB_NUMBER;
                     }
                     string bbSourcePart = string.IsNullOrEmpty(sBB_NUMBER) ? "" : $" BD {sBB_NUMBER}";
-                    string part2 = $"{complexSwitchModelName}{bbSourcePart}".PadRight(41);
+                    string part2 = ReplaceMultipleSpaces($"{complexSwitchModelName}{bbSourcePart}").PadRight(41);
                     // Part 3: 13 characters ("BB-SEGM")
                     string part3 = "BB-SEGM".PadRight(13);
                     // Return the concatenated result
@@ -173,7 +185,15 @@ namespace CLP.ADMSUpdatePlugin
             string bbTargetPart = string.IsNullOrEmpty(second.BB_NUMBER) ? "" : $" BD {second.BB_NUMBER} ";
             string serialNumberPart = string.IsNullOrEmpty(first.SERIALNUMBER) ? "" : $" #{first.SERIALNUMBER}";
             string part2 = $"{substationTarget}{bbTargetPart}{serialNumberPart}";
-            return part2;
+            if (second.Source.AssetGroupName == "Transformer")
+            {
+                string txPart = string.IsNullOrEmpty(second.TX_NO) ? "" : $" D{second.TX_NO}";
+                if (first.SSCODE == second.SSCODE)
+                    part2 = $"L/Tx{txPart}";
+                else
+                    part2 = $"{substationTarget} Tx {txPart}";
+            }
+            return ReplaceMultipleSpaces(part2);
         }
 
         public static string GetADMSNameForCBToCB(SS_TO_SS_Model first, SS_TO_SS_Model second)
@@ -253,7 +273,7 @@ namespace CLP.ADMSUpdatePlugin
                     txPart += $"D{second.TX_NO}";
                 }
             }
-            string part2 = $"{bbSourcePart}{txPart}".PadRight(41);
+            string part2 = ReplaceMultipleSpaces($"{bbSourcePart}{txPart}").PadRight(41);
             string assetTypeAbbreviation ="CB";
             //SCB CB
             string part3 = $"{assetTypeAbbreviation}".PadRight(13);
