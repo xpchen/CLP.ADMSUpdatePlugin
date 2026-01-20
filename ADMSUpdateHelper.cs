@@ -39,7 +39,11 @@ namespace CLP.ADMSUpdatePlugin
             {
                 string txPart = String.IsNullOrEmpty(des.TX_NO) ? "" : $" D{des.TX_NO}";
                 textB += $" Tx{txPart}";
-            } 
+            }
+            if (!String.IsNullOrEmpty(src.SERIALNUMBER))
+            {
+                textB += $" #{src.SERIALNUMBER}";
+            }
             if (!String.IsNullOrEmpty(des.BB_NUMBER) && des.Source.AssetGroupName != "Transformer")
             {
                 textB += $" BD {des.BB_NUMBER}";
@@ -90,6 +94,10 @@ namespace CLP.ADMSUpdatePlugin
             if (!String.IsNullOrEmpty(des.BB_NUMBER) && des.Source.AssetGroupName != "Transformer")
             {
                 textB += $" B{des.BB_NUMBER}";
+            }
+            if (!String.IsNullOrEmpty(src.SERIALNUMBER))
+            {
+                textB += $" {src.SERIALNUMBER}";
             }
             string textC = isTemplate? "L" + "".PadRight(6,'X'): " L" + cable.ObjectID; // Use the objectid from the cable
             if (textC.Length < 9)
