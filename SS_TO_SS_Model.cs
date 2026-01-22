@@ -54,10 +54,11 @@ namespace CLP.ADMSUpdatePlugin
                 {
                     return ADMSUpdateHelper.GetADMSNameForTransformer(this);
                 }
-                else
+                if (this.Target == null)
                 {
-                    return ADMSUpdateHelper.GetADMSNameForCBToCB(this, Target);
+                    return ADMSUpdateHelper.GetADMSNameForSpareCB(this);
                 }
+                return ADMSUpdateHelper.GetADMSNameForCBToCB(this, Target);
             }
         }
 

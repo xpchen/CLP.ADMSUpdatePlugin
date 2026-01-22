@@ -79,15 +79,15 @@ namespace CLP.ADMSUpdatePlugin
 
                 LoggerHelper.Info("Starting ADMS Name & Alias update process.");
 
+                EditOperation editOp = new EditOperation();
+                Inspector insp = new Inspector();
+
                 if (this.FirstHVSwitch != null && this.SecondHVSwitch != null)
                 {
                     try
                     {
-                        EditOperation editOp = new EditOperation();
-
                         var cbTable = un.GetTable(this.FirstHVSwitch.Source.Element.NetworkSource);
 
-                        Inspector insp = new Inspector();
                         if (this.FirstHVSwitch.IsChecked)
                         {
                             // Update ADMS Name & Alias for the first HV Switch
@@ -219,6 +219,56 @@ namespace CLP.ADMSUpdatePlugin
                         MessageBox.Show("Error: " + ex.Message);
                     }
                 }
+                else if (this.SpareHVSwitch != null)
+                {
+                    try
+                    {
+                        var cbTable = un.GetTable(this.SpareHVSwitch.Source.Element.NetworkSource);
+
+                        if (this.SpareHVSwitch.IsChecked)
+                        {
+                            // Update ADMS Name & Alias for the first HV Switch
+                            insp.Load(cbTable, this.SpareHVSwitch.Source.ObjectID);
+                            string firstHVSwitchName = this.SpareHVSwitch.ADMSName;
+                            string firstHVSwitchAlias = this.SpareHVSwitch.ADMSAlias;
+                            string firstHVSwitchAssetGroup = this.SpareHVSwitch.Source.AssetGroupName;
+                            string firstHVSwitchAssetType = this.SpareHVSwitch.Source.AssetTypeName;
+
+                            LoggerHelper.Info($"Updating ADMS_Name and ADMS_Alias for Spare HV Switch (ObjectID: {this.SpareHVSwitch.Source.ObjectID}, AssetGroup: {firstHVSwitchAssetGroup}, AssetType: {firstHVSwitchAssetType})");
+                            LoggerHelper.Info($"ADMS_Name: {firstHVSwitchName}, ADMS_Alias: {firstHVSwitchAlias}");
+
+                            insp["ADMS_Name"] = firstHVSwitchName;
+                            insp["ADMS_Alias"] = firstHVSwitchAlias;
+
+                            if (this.SpareHVSwitch.Source.AssetGroupName == "HV Switch")
+                            {
+                                insp["SOM_SS"] = ADMSUpdateHelper.GetCB_SOM_SS(this.SpareHVSwitch);
+                                insp["SOM_CCT"] = ADMSUpdateHelper.GetSpare_CB_SOM_CCT(this.SpareHVSwitch);
+                            }
+
+                            editOp.Modify(insp);
+                        }
+                        if (!editOp.IsEmpty)
+                        {
+                            if (editOp.Execute())
+                            {
+                                LoggerHelper.Info("ADMS Name & Alias update completed successfully.");
+                                MessageBox.Show("Update successfully!");
+                            }
+                            else
+                            {
+                                LoggerHelper.Error($"Update failed: {editOp.ErrorMessage}");
+                                MessageBox.Show("Update fail: " + editOp.ErrorMessage);
+                            }
+
+                        }
+                    } 
+                    catch(Exception ex)
+                    {
+                        LoggerHelper.Error($"Exception occurred during ADMS Name & Alias update: {ex.Message}");
+                        MessageBox.Show("Error: " + ex.Message);
+                    }
+                }
                 else
                 {
                     LoggerHelper.Error("FirstHVSwitch or SecondHVSwitch is null. Update aborted.");
@@ -229,6 +279,7 @@ namespace CLP.ADMSUpdatePlugin
 
         public void Back() {
             this.ShowUpdatePanel = false;
+            this.ShowSpareCBUpdatePanel = false;
             this.ShowSearchPanel = true;
         }
 
@@ -284,8 +335,8 @@ namespace CLP.ADMSUpdatePlugin
         {
             await QueuedTask.Run(() => {
                 var un = MapView.Active?.Map
-.GetLayersAsFlattenedList()
-.OfType<UtilityNetworkLayer>().FirstOrDefault()?.GetUtilityNetwork();
+                    .GetLayersAsFlattenedList()
+                    .OfType<UtilityNetworkLayer>().FirstOrDefault()?.GetUtilityNetwork();
                 if (un != null)
                 {
                     var mapSelectionDict = args.Selection.ToDictionary();
@@ -465,7 +516,7 @@ namespace CLP.ADMSUpdatePlugin
             this.CableTotal = 0;
             if (cables.Any())
             {
-              
+
                 HashSet<string> cableADMSNames = new HashSet<string>();
                 HashSet<string> cableADMSAliases = new HashSet<string>();
 
@@ -487,269 +538,346 @@ namespace CLP.ADMSUpdatePlugin
             await QueuedTask.Run(async () => {
                 if (SelectionElement == null) return;
                 var utilityNetwork = MapView.Active?.Map
-                .GetLayersAsFlattenedList()
-                .OfType<UtilityNetworkLayer>().FirstOrDefault()?.GetUtilityNetwork();
+                    .GetLayersAsFlattenedList()
+                    .OfType<UtilityNetworkLayer>().FirstOrDefault()?.GetUtilityNetwork();
                 using (UtilityNetworkDefinition utilityNetworkDefinition = utilityNetwork.GetDefinition())
                 {
                     using (NetworkSource networkSource = utilityNetworkDefinition.GetNetworkSource("ElectricDevice"))
                     {
                         try
                         {
-                            DomainNetwork domainNetwork = utilityNetworkDefinition.GetDomainNetwork("Electric");
-                            Tier sourceTier = domainNetwork.GetTier("LV");
-                            TraceConfiguration cfg = sourceTier.GetTraceConfiguration();
-                            cfg.Propagators = new List<Propagator>();
-                            var catSub = utilityNetworkDefinition
-                            .GetAvailableCategories()
-                                .FirstOrDefault(c => c.Equals("E:Switch", StringComparison.OrdinalIgnoreCase));
-                            cfg.Filter.Scope = TraversabilityScope.JunctionsAndEdges;
-                            if (catSub != null)
+                            if (this.UpdateMode == ADMSUpdateMode.SS_TO_SS)
+                            {
+                                DomainNetwork domainNetwork = utilityNetworkDefinition.GetDomainNetwork("Electric");
+                                Tier sourceTier = domainNetwork.GetTier("LV");
+                                TraceConfiguration cfg = sourceTier.GetTraceConfiguration();
+                                cfg.Propagators = new List<Propagator>();
+                                var catSub = utilityNetworkDefinition
+                                .GetAvailableCategories()
+                                    .FirstOrDefault(c => c.Equals("E:Switch", StringComparison.OrdinalIgnoreCase));
+                                cfg.Filter.Scope = TraversabilityScope.JunctionsAndEdges;
                                 if (catSub != null)
-                                {
-                                    var catExpr = new CategoryComparison(CategoryOperator.IsEqual, catSub);
-                                    var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                    cfg.Traversability.Barriers = existing == null ? (Condition)catExpr : new Or(existing, catExpr);
-                                }
-
-                            // condition_barriers="Category IS_EQUAL_TO SPECIFIC_VALUE E:Switch OR;'Asset group' IS_EQUAL_TO SPECIFIC_VALUE 51 OR;'Life Cycle Status' IS_EQUAL_TO SPECIFIC_VALUE 3 OR;'Life Cycle Status' IS_EQUAL_TO SPECIFIC_VALUE 4 OR;'Life Cycle Status' IS_EQUAL_TO SPECIFIC_VALUE 0 #",
-                            cfg.Traversability.Barriers = TraceCfgHelpers.RemoveAttrFromBarriers(cfg.Traversability.Barriers, new string[] { "NormalOperatingStatus", "Life Cycle Status" });
-                            var lifeCycleStatuses = new List<int> { 0, 4, 3 }; // 需要的状态值 0, 1, 3
-                            foreach (var status in lifeCycleStatuses)
-                            {
-                                var lifeCycleStatusAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "LifeCycleStatus", "Life Cycle Status");
-                                if (lifeCycleStatusAttr != null)
-                                {
-                                    var statusExpr = new NetworkAttributeComparison(lifeCycleStatusAttr, Operator.Equal, status);
-                                    var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                    cfg.Traversability.Barriers = existing == null ? (Condition)statusExpr : new Or(existing, statusExpr);
-                                }
-                            }
-                            var assetGroupAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "Assetgroup", "Asset group");
-                            if (assetGroupAttr != null)
-                            {
-                                var assetGroupExpr = new NetworkAttributeComparison(assetGroupAttr, Operator.Equal, 51);
-                                var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                cfg.Traversability.Barriers = existing == null ? (Condition)assetGroupExpr : new Or(existing, assetGroupExpr);
-                            }
-                            using (TraceManager traceManager = utilityNetwork.GetTraceManager())
-                            {
-                                var startElement = this.SelectionElement;
-
-                               
-                                if (startElement.AssetGroup.Name == "HV Switch")
-                                {
-                                    if (startElement.AssetType.Name == "Source Circuit Breaker")
+                                    if (catSub != null)
                                     {
-
-                                        var tcfg = startElement.AssetType.GetTerminalConfiguration();
-                                        startElement.Terminal = tcfg.Terminals.FirstOrDefault(p => p.Name == "Load");
+                                        var catExpr = new CategoryComparison(CategoryOperator.IsEqual, catSub);
+                                        var existing = cfg.Traversability.Barriers as ConditionalExpression;
+                                        cfg.Traversability.Barriers = existing == null ? (Condition)catExpr : new Or(existing, catExpr);
                                     }
-                                    else {
-                                        var tcfg = startElement.AssetType.GetTerminalConfiguration();
-                                        startElement.Terminal = tcfg.Terminals.FirstOrDefault(p => p.Name == "CB:Line Side");
+
+                                // condition_barriers="Category IS_EQUAL_TO SPECIFIC_VALUE E:Switch OR;'Asset group' IS_EQUAL_TO SPECIFIC_VALUE 51 OR;'Life Cycle Status' IS_EQUAL_TO SPECIFIC_VALUE 3 OR;'Life Cycle Status' IS_EQUAL_TO SPECIFIC_VALUE 4 OR;'Life Cycle Status' IS_EQUAL_TO SPECIFIC_VALUE 0 #",
+                                cfg.Traversability.Barriers = TraceCfgHelpers.RemoveAttrFromBarriers(cfg.Traversability.Barriers, new string[] { "NormalOperatingStatus", "Life Cycle Status" });
+                                var lifeCycleStatuses = new List<int> { 0, 4, 3 }; // 需要的状态值 0, 1, 3
+                                foreach (var status in lifeCycleStatuses)
+                                {
+                                    var lifeCycleStatusAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "LifeCycleStatus", "Life Cycle Status");
+                                    if (lifeCycleStatusAttr != null)
+                                    {
+                                        var statusExpr = new NetworkAttributeComparison(lifeCycleStatusAttr, Operator.Equal, status);
+                                        var existing = cfg.Traversability.Barriers as ConditionalExpression;
+                                        cfg.Traversability.Barriers = existing == null ? (Condition)statusExpr : new Or(existing, statusExpr);
                                     }
                                 }
-
-                                //var tcf = this.SelectionHVLine.AssetType.GetTerminalConfiguration();
-                                //var terminal = tcf.Terminals.FirstOrDefault(p => "LOAD".Equals(p.Name, StringComparison.OrdinalIgnoreCase));
-                                //startElement.Terminal = terminal;
-                                TraceArgument traceArgument = new TraceArgument(new List<Element>() { this.SelectionElement });
-                                traceArgument.Configuration = cfg;
-                                Tracer tracer = traceManager.GetTracer<ConnectedTracer>();
-                                IReadOnlyList<Result> traceResults = tracer.Trace(traceArgument);
-                                var results = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(traceResults);
-                                await HighlightPathOnMapAsync(utilityNetwork, results.FeatureByGlobalId.Values);
-
-                                var features = results.FeatureByGlobalId.Values;
-                                //HV Switch
-                                var hvSwitchs = features.Where(p => p.AssetGroupName == "HV Switch");
-                                var transfomers = features.Where(p => p.AssetGroupName == "Transformer");
-
-                                if (hvSwitchs.Count() + transfomers.Count() > 2)
+                                var assetGroupAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "Assetgroup", "Asset group");
+                                if (assetGroupAttr != null)
                                 {
-                                    MessageBox.Show("The process cannot be completed because there are more than two HV Switches or Transformers selected. Please select exactly two HV Switches or one Transformer and one HV Switch.", "Invalid Selection", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                                    return;
+                                    var assetGroupExpr = new NetworkAttributeComparison(assetGroupAttr, Operator.Equal, 51);
+                                    var existing = cfg.Traversability.Barriers as ConditionalExpression;
+                                    cfg.Traversability.Barriers = existing == null ? (Condition)assetGroupExpr : new Or(existing, assetGroupExpr);
                                 }
-
-
-                                SS_TO_SS_ResultType resultType = SS_TO_SS_ResultType.CB_TO_CB;
-                                if (transfomers.Any())
+                                using (TraceManager traceManager = utilityNetwork.GetTraceManager())
                                 {
+                                    var startElement = this.SelectionElement;
 
-                                    resultType = SS_TO_SS_ResultType.CB_TO_TRANSFORMER;
-                                }
-                                var hvSwitchAssociations = utilityNetwork.TraverseAssociations(hvSwitchs.Select(p => p.Element), new TraverseAssociationsDescription(TraversalDirection.Ascending));
-                                SS_TO_SS_Model first = null;
-                                SS_TO_SS_Model second = null;
 
-                                foreach (var hvSwitchAssociation in hvSwitchAssociations.Associations)
-                                {
-                                    if (hvSwitchAssociation.FromElement.AssetGroup.Name == "Substation"
-                                    && hvSwitchAssociation.ToElement.AssetGroup.Name == "HV Switch")
+                                    if (startElement.AssetGroup.Name == "HV Switch")
                                     {
-                                        if (first == null)
+                                        if (startElement.AssetType.Name == "Source Circuit Breaker")
                                         {
-                                            var firstSwitchFeature = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.ToElement.GlobalID);
-                                            var firstSubstation = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.FromElement.GlobalID);
-                                            first = new SS_TO_SS_Model(firstSwitchFeature, utilityNetwork);
-                                            first.SSCODE = firstSubstation.Attributes["SSNUM"]?.ToString();
-                                            first.SSNAME = firstSubstation.Attributes["SSNAME"]?.ToString();
-                                            first.Source = firstSwitchFeature;
-                                            first.Substation = firstSubstation;
+                                            var tcfg = startElement.AssetType.GetTerminalConfiguration();
+                                            startElement.Terminal = tcfg.Terminals.FirstOrDefault(p => p.Name == "Load");
                                         }
                                         else
                                         {
-                                            var secondSwitchFeature = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.ToElement.GlobalID);
-                                            var secondSubstation = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.FromElement.GlobalID);
-                                            second = new SS_TO_SS_Model(secondSwitchFeature, utilityNetwork);
-                                            second.SSCODE = secondSubstation.Attributes["SSNUM"]?.ToString();
-                                            second.SSNAME = secondSubstation.Attributes["SSNAME"]?.ToString();
-                                            second.Source = secondSwitchFeature;
-                                            second.Substation = secondSubstation;
+                                            var tcfg = startElement.AssetType.GetTerminalConfiguration();
+                                            startElement.Terminal = tcfg.Terminals.FirstOrDefault(p => p.Name == "CB:Line Side");
                                         }
                                     }
-                                    if (hvSwitchAssociation.FromElement.AssetGroup.Name == "Support Structure"
-                                    && hvSwitchAssociation.ToElement.AssetGroup.Name == "HV Switch")
-                                    {
-                                        var supportStructureAssociations = utilityNetwork.GetAssociations(hvSwitchAssociation.FromElement, AssociationType.Containment);
-                                        string msg = $"Support Structure Assictions:[{String.Join(",", supportStructureAssociations.Select(p => p.FromElement.AssetGroup.Name))}]";
-                                        LoggerHelper.Info(msg);
-                                        foreach (var supportStructureAssociation in supportStructureAssociations)
-                                        {
-                                            if (supportStructureAssociation.FromElement.AssetGroup.Name == "Transformer" || supportStructureAssociation.ToElement.AssetGroup.Name == "Transformer")
-                                            {
-                                                var transformerElement = supportStructureAssociation.FromElement.AssetGroup.Name == "Transformer" ?
-                                                    supportStructureAssociation.FromElement : supportStructureAssociation.ToElement;
-                                                var transformerAssociations = utilityNetwork.GetAssociations(transformerElement, AssociationType.Containment);
-                                                foreach (var transfomerAssociation in transformerAssociations)
-                                                {
-                                                    var secondSwitchFeature = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.ToElement.GlobalID);
-                                                    var secondSubstation = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.FromElement.GlobalID);
-                                                    second = new SS_TO_SS_Model(secondSwitchFeature, utilityNetwork);
-                                                    second.SSCODE = secondSubstation.Attributes["SSNUM"]?.ToString();
-                                                    second.SSNAME = secondSubstation.Attributes["SSNAME"]?.ToString();
-                                                    second.Source = secondSwitchFeature;
-                                                    second.Substation = secondSubstation;
-                                                }
-                                            }
-                                        }
-                                        //var supportStructureAssociations = utilityNetwork.TraverseAssociations(new Element[] { hvSwitchAssociation.FromElement }, new TraverseAssociationsDescription(TraversalDirection.Ascending));
-                                    }
-                                }
-                                if ((resultType == SS_TO_SS_ResultType.CB_TO_CB || resultType == SS_TO_SS_ResultType.CB_TO_SCB) && first != null && second != null)
-                                {
-                                    if (String.IsNullOrEmpty(first.SSNAME) || String.IsNullOrEmpty(first.SSCODE) || String.IsNullOrEmpty(second.SSCODE) || String.IsNullOrEmpty(second.SSNAME))
-                                    {
-                                        // Log the error for missing substation or switch information
-                                        string errorMessage = "Missing information: ";
-                                        if (String.IsNullOrEmpty(first.SSNAME))
-                                            errorMessage += $"First HV Switch:([{first.Source.ObjectID},{first.Source.GlobalID}]) SSNAME is missing. ";
-                                        if (String.IsNullOrEmpty(first.SSCODE))
-                                            errorMessage += $"First HV Switch([{first.Source.ObjectID},{first.Source.GlobalID}]) SSCODE is missing. ";
-                                        if (String.IsNullOrEmpty(second.SSNAME))
-                                            errorMessage += $"Second HV Switch:([{second.Source.ObjectID},{second.Source.GlobalID}]) SSNAME is missing. ";
-                                        if (String.IsNullOrEmpty(second.SSCODE))
-                                            errorMessage += $"Second HV Switch:([{second.Source.ObjectID},{second.Source.GlobalID}]) SSCODE is missing. ";
 
-                                        // Log the error message
-                                        LoggerHelper.Error(errorMessage);
+                                    //var tcf = this.SelectionHVLine.AssetType.GetTerminalConfiguration();
+                                    //var terminal = tcf.Terminals.FirstOrDefault(p => "LOAD".Equals(p.Name, StringComparison.OrdinalIgnoreCase));
+                                    //startElement.Terminal = terminal;
+                                    TraceArgument traceArgument = new TraceArgument(new List<Element>() { this.SelectionElement });
+                                    traceArgument.Configuration = cfg;
+                                    Tracer tracer = traceManager.GetTracer<ConnectedTracer>();
+                                    IReadOnlyList<Result> traceResults = tracer.Trace(traceArgument);
+                                    var results = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(traceResults);
+                                    await HighlightPathOnMapAsync(utilityNetwork, results.FeatureByGlobalId.Values);
 
-                                        // Show a message box with a detailed error
-                                        MessageBox.Show("Cannot proceed: " + errorMessage);
+                                    var features = results.FeatureByGlobalId.Values;
+                                    //HV Switch
+                                    var hvSwitchs = features.Where(p => p.AssetGroupName == "HV Switch");
+                                    var transfomers = features.Where(p => p.AssetGroupName == "Transformer");
+
+                                    if (hvSwitchs.Count() + transfomers.Count() > 2)
+                                    {
+                                        MessageBox.Show("The process cannot be completed because there are more than two HV Switches or Transformers selected. Please select exactly two HV Switches or one Transformer and one HV Switch.", "Invalid Selection", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                                         return;
                                     }
 
-                                    first.Target = second;
-                                    second.Target = first;
-                                    if (first.Source.AssetTypeName != "Source Circuit Breaker" || second.Source.AssetTypeName != "Source Circuit Breaker")
+
+                                    SS_TO_SS_ResultType resultType = SS_TO_SS_ResultType.CB_TO_CB;
+                                    if (transfomers.Any())
                                     {
+
+                                        resultType = SS_TO_SS_ResultType.CB_TO_TRANSFORMER;
+                                    }
+                                    var hvSwitchAssociations = utilityNetwork.TraverseAssociations(hvSwitchs.Select(p => p.Element), new TraverseAssociationsDescription(TraversalDirection.Ascending));
+                                    SS_TO_SS_Model first = null;
+                                    SS_TO_SS_Model second = null;
+
+                                    foreach (var hvSwitchAssociation in hvSwitchAssociations.Associations)
+                                    {
+                                        if (hvSwitchAssociation.FromElement.AssetGroup.Name == "Substation"
+                                        && hvSwitchAssociation.ToElement.AssetGroup.Name == "HV Switch")
+                                        {
+                                            if (first == null)
+                                            {
+                                                var firstSwitchFeature = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.ToElement.GlobalID);
+                                                var firstSubstation = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.FromElement.GlobalID);
+                                                first = new SS_TO_SS_Model(firstSwitchFeature, utilityNetwork);
+                                                first.SSCODE = firstSubstation.Attributes["SSNUM"]?.ToString();
+                                                first.SSNAME = firstSubstation.Attributes["SSNAME"]?.ToString();
+                                                first.Source = firstSwitchFeature;
+                                                first.Substation = firstSubstation;
+                                            }
+                                            else
+                                            {
+                                                var secondSwitchFeature = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.ToElement.GlobalID);
+                                                var secondSubstation = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.FromElement.GlobalID);
+                                                second = new SS_TO_SS_Model(secondSwitchFeature, utilityNetwork);
+                                                second.SSCODE = secondSubstation.Attributes["SSNUM"]?.ToString();
+                                                second.SSNAME = secondSubstation.Attributes["SSNAME"]?.ToString();
+                                                second.Source = secondSwitchFeature;
+                                                second.Substation = secondSubstation;
+                                            }
+                                        }
+                                        if (hvSwitchAssociation.FromElement.AssetGroup.Name == "Support Structure"
+                                        && hvSwitchAssociation.ToElement.AssetGroup.Name == "HV Switch")
+                                        {
+                                            var supportStructureAssociations = utilityNetwork.GetAssociations(hvSwitchAssociation.FromElement, AssociationType.Containment);
+                                            string msg = $"Support Structure Assictions:[{String.Join(",", supportStructureAssociations.Select(p => p.FromElement.AssetGroup.Name))}]";
+                                            LoggerHelper.Info(msg);
+                                            foreach (var supportStructureAssociation in supportStructureAssociations)
+                                            {
+                                                if (supportStructureAssociation.FromElement.AssetGroup.Name == "Transformer" || supportStructureAssociation.ToElement.AssetGroup.Name == "Transformer")
+                                                {
+                                                    var transformerElement = supportStructureAssociation.FromElement.AssetGroup.Name == "Transformer" ?
+                                                        supportStructureAssociation.FromElement : supportStructureAssociation.ToElement;
+                                                    var transformerAssociations = utilityNetwork.GetAssociations(transformerElement, AssociationType.Containment);
+                                                    foreach (var transfomerAssociation in transformerAssociations)
+                                                    {
+                                                        var secondSwitchFeature = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.ToElement.GlobalID);
+                                                        var secondSubstation = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.FromElement.GlobalID);
+                                                        second = new SS_TO_SS_Model(secondSwitchFeature, utilityNetwork);
+                                                        second.SSCODE = secondSubstation.Attributes["SSNUM"]?.ToString();
+                                                        second.SSNAME = secondSubstation.Attributes["SSNAME"]?.ToString();
+                                                        second.Source = secondSwitchFeature;
+                                                        second.Substation = secondSubstation;
+                                                    }
+                                                }
+                                            }
+                                            //var supportStructureAssociations = utilityNetwork.TraverseAssociations(new Element[] { hvSwitchAssociation.FromElement }, new TraverseAssociationsDescription(TraversalDirection.Ascending));
+                                        }
+                                    }
+                                    if ((resultType == SS_TO_SS_ResultType.CB_TO_CB || resultType == SS_TO_SS_ResultType.CB_TO_SCB) && first != null && second != null)
+                                    {
+                                        if (String.IsNullOrEmpty(first.SSNAME) || String.IsNullOrEmpty(first.SSCODE) || String.IsNullOrEmpty(second.SSCODE) || String.IsNullOrEmpty(second.SSNAME))
+                                        {
+                                            // Log the error for missing substation or switch information
+                                            string errorMessage = "Missing information: ";
+                                            if (String.IsNullOrEmpty(first.SSNAME))
+                                                errorMessage += $"First HV Switch:([{first.Source.ObjectID},{first.Source.GlobalID}]) SSNAME is missing. ";
+                                            if (String.IsNullOrEmpty(first.SSCODE))
+                                                errorMessage += $"First HV Switch([{first.Source.ObjectID},{first.Source.GlobalID}]) SSCODE is missing. ";
+                                            if (String.IsNullOrEmpty(second.SSNAME))
+                                                errorMessage += $"Second HV Switch:([{second.Source.ObjectID},{second.Source.GlobalID}]) SSNAME is missing. ";
+                                            if (String.IsNullOrEmpty(second.SSCODE))
+                                                errorMessage += $"Second HV Switch:([{second.Source.ObjectID},{second.Source.GlobalID}]) SSCODE is missing. ";
+
+                                            // Log the error message
+                                            LoggerHelper.Error(errorMessage);
+
+                                            // Show a message box with a detailed error
+                                            MessageBox.Show("Cannot proceed: " + errorMessage);
+                                            return;
+                                        }
+
+                                        first.Target = second;
+                                        second.Target = first;
+                                        if (first.Source.AssetTypeName != "Source Circuit Breaker" || second.Source.AssetTypeName != "Source Circuit Breaker")
+                                        {
+                                            second.ResultType = resultType;
+                                            first.ResultType = resultType;
+                                            String traceInfo = $"Trace INFO:Switch:[{first.Source.ObjectID},{first.Source.GlobalID}],Substation :[{second.SSCODE},{second.SSNAME}],Switch:[{second.Source.ObjectID},{second.Source.GlobalID}],Substation :[{second.SSCODE},{second.SSNAME}]";
+                                            LoggerHelper.Info(traceInfo);
+                                            await TraceHVSwitchs(first, utilityNetwork, utilityNetworkDefinition, domainNetwork, new Element[] {
+                                                first.Source.Element,
+                                                second.Source.Element
+                                            });
+                                            await TraceHVSwitchs(second, utilityNetwork, utilityNetworkDefinition, domainNetwork, new Element[] {
+                                                second.Source.Element,
+                                                first.Source.Element
+                                            });
+                                        }
+                                        else
+                                        {
+                                            resultType = SS_TO_SS_ResultType.CB_TO_SCB;
+                                            second.ResultType = resultType;
+                                            first.ResultType = resultType;
+                                        }
+                                        // LoggerHelper.Info($"Trace result for:{Tr}");
+                                        this.FirstHVSwitch = first;
+                                        this.SecondHVSwitch = second;
+
+                                        this.Cables = features.Where(p => p.AssetGroupName == "HV Line" && p.AssetTypeName == "Cable");
+                                        foreach (var cable in Cables)
+                                        {
+                                            cable.Attributes["ADMS_Name"] = ADMSUpdateHelper.GetCableADMSName(first, second, cable);
+                                            cable.Attributes["ADMS_Alias"] = ADMSUpdateHelper.GetCableADMSAlias(first, second, cable);
+                                        }
+                                        GetCableADMSInfo(Cables, first, second);
+                                        this.ShowSearchPanel = false;
+                                        this.ShowUpdatePanel = true;
+                                    }
+                                    else if (resultType == SS_TO_SS_ResultType.CB_TO_TRANSFORMER && transfomers.Any())
+                                    {
+                                        var transfomer = transfomers.First();
+                                        var transfomerAssociations = utilityNetwork.TraverseAssociations(transfomers.Select(p => p.Element), new TraverseAssociationsDescription(TraversalDirection.Ascending));
+                                        foreach (var transfomerhAssociation in transfomerAssociations.Associations)
+                                        {
+                                            if (transfomerhAssociation.FromElement.AssetGroup.Name == "Substation"
+                                       && transfomerhAssociation.ToElement.AssetGroup.Name == "Transformer")
+                                            {
+                                                var substation = new SpatialSubgraphExtractor(utilityNetwork).Extract(new Element[] { transfomerhAssociation.FromElement }).FeatureByGlobalId.Values.FirstOrDefault();
+                                                second = new SS_TO_SS_Model(transfomer, utilityNetwork);
+                                                second.SSCODE = substation.Attributes["SSNUM"]?.ToString();
+                                                second.SSNAME = substation.Attributes["SSNAME"]?.ToString();
+                                                second.Substation = substation;
+                                            }
+                                        }
+                                        if (String.IsNullOrEmpty(second.SSCODE))
+                                        {
+                                            second.SSCODE = second.Source.Attributes["SS_CODE"]?.ToString();
+
+                                        }
+                                        if (String.IsNullOrEmpty(second.SSNAME))
+                                        {
+                                            second.SSNAME = second.Source.Attributes["SS_NAME"]?.ToString();
+                                        }
                                         second.ResultType = resultType;
                                         first.ResultType = resultType;
-                                        String traceInfo = $"Trace INFO:Switch:[{first.Source.ObjectID},{first.Source.GlobalID}],Substation :[{second.SSCODE},{second.SSNAME}],Switch:[{second.Source.ObjectID},{second.Source.GlobalID}],Substation :[{second.SSCODE},{second.SSNAME}]";
-                                        LoggerHelper.Info(traceInfo);
-                                        await TraceHVSwitchs(first, utilityNetwork, utilityNetworkDefinition, domainNetwork, new Element[] {
-                                first.Source.Element,
-                                second.Source.Element
-                            });
-                                        await TraceHVSwitchs(second, utilityNetwork, utilityNetworkDefinition, domainNetwork, new Element[] {
-                                second.Source.Element,
-                                first.Source.Element
-                            });
+                                        first.Target = second;
+                                        second.Target = first;
+                                        this.FirstHVSwitch = first;
+                                        this.SecondHVSwitch = second;
+                                        this.Cables = features.Where(p => p.AssetGroupName == "HV Line" && p.AssetTypeName == "Cable");
+                                        foreach (var cable in Cables)
+                                        {
+                                            cable.Attributes["ADMS_Name"] = ADMSUpdateHelper.GetCableADMSName(first, second, cable);
+                                            cable.Attributes["ADMS_Alias"] = ADMSUpdateHelper.GetCableADMSAlias(first, second, cable);
+                                        }
+                                        foreach (var cable in Cables)
+                                        {
+                                            cable.Attributes["ADMS_Name"] = ADMSUpdateHelper.GetCableADMSName(first, second, cable);
+                                            cable.Attributes["ADMS_Alias"] = ADMSUpdateHelper.GetCableADMSAlias(first, second, cable);
+                                        }
+                                        GetCableADMSInfo(Cables, first, second);
+                                        this.ShowSearchPanel = false;
+                                        this.ShowUpdatePanel = true;
                                     }
                                     else
                                     {
-                                        resultType = SS_TO_SS_ResultType.CB_TO_SCB;
-                                        second.ResultType = resultType;
-                                        first.ResultType = resultType;
-                                    }
-                                    // LoggerHelper.Info($"Trace result for:{Tr}");
-                                    this.FirstHVSwitch = first;
-                                    this.SecondHVSwitch = second;
-
-                                    this.Cables = features.Where(p => p.AssetGroupName == "HV Line" && p.AssetTypeName == "Cable");
-                                    foreach (var cable in Cables)
-                                    {
-                                        cable.Attributes["ADMS_Name"] = ADMSUpdateHelper.GetCableADMSName(first, second, cable);
-                                        cable.Attributes["ADMS_Alias"] = ADMSUpdateHelper.GetCableADMSAlias(first, second, cable);
-                                    }
-                                    GetCableADMSInfo(Cables, first, second);
-                                    this.ShowSearchPanel = false;
-                                    this.ShowUpdatePanel = true;
-                                }
-                                else if (resultType == SS_TO_SS_ResultType.CB_TO_TRANSFORMER && transfomers.Any())
-                                {
-                                    var transfomer = transfomers.First();
-                                    var transfomerAssociations = utilityNetwork.TraverseAssociations(transfomers.Select(p => p.Element), new TraverseAssociationsDescription(TraversalDirection.Ascending));
-                                    foreach (var transfomerhAssociation in transfomerAssociations.Associations)
-                                    {
-                                        if (transfomerhAssociation.FromElement.AssetGroup.Name == "Substation"
-                                   && transfomerhAssociation.ToElement.AssetGroup.Name == "Transformer")
+                                        if (second == null)
                                         {
-                                            var substation = new SpatialSubgraphExtractor(utilityNetwork).Extract(new Element[] { transfomerhAssociation.FromElement }).FeatureByGlobalId.Values.FirstOrDefault();
-                                            second = new SS_TO_SS_Model(transfomer, utilityNetwork);
-                                            second.SSCODE = substation.Attributes["SSNUM"]?.ToString();
-                                            second.SSNAME = substation.Attributes["SSNAME"]?.ToString();
-                                            second.Substation = substation;
+                                            MessageBox.Show($"Cannot find valid HV Switches in {this.UpdateModels[this.UpdateMode]} mode");
                                         }
-                                    }
-                                    if (String.IsNullOrEmpty(second.SSCODE))
-                                    {
-                                        second.SSCODE = second.Source.Attributes["SS_CODE"]?.ToString();
 
                                     }
-                                    if (String.IsNullOrEmpty(second.SSNAME))
-                                    {
-                                        second.SSNAME = second.Source.Attributes["SS_NAME"]?.ToString();
-                                    }
-                                    second.ResultType = resultType;
-                                    first.ResultType = resultType;
-                                    first.Target = second;
-                                    second.Target = first;
-                                    this.FirstHVSwitch = first;
-                                    this.SecondHVSwitch = second;
-                                    this.Cables = features.Where(p => p.AssetGroupName == "HV Line" && p.AssetTypeName == "Cable");
-                                    foreach (var cable in Cables)
-                                    {
-                                        cable.Attributes["ADMS_Name"] = ADMSUpdateHelper.GetCableADMSName(first, second, cable);
-                                        cable.Attributes["ADMS_Alias"] = ADMSUpdateHelper.GetCableADMSAlias(first, second, cable);
-                                    }
-                                    foreach (var cable in Cables)
-                                    {
-                                        cable.Attributes["ADMS_Name"] = ADMSUpdateHelper.GetCableADMSName(first, second, cable);
-                                        cable.Attributes["ADMS_Alias"] = ADMSUpdateHelper.GetCableADMSAlias(first, second, cable);
-                                    }
-                                    GetCableADMSInfo(Cables, first, second);
-                                    this.ShowSearchPanel = false;
-                                    this.ShowUpdatePanel = true;
                                 }
-                                else
+                            }
+                            else if (this.UpdateMode == ADMSUpdateMode.SpareCB)
+                            {
+                                var startElement = this.SelectionElement;
+                                var hvSwitchAssociations = utilityNetwork.GetAssociations(startElement);
+                                SS_TO_SS_Model first = null;
+                                if (hvSwitchAssociations.Count() == 0)
                                 {
-                                    if (second == null)
-                                    {
-                                        MessageBox.Show($"Cannot find valid HV Switches in {this.UpdateModels[this.UpdateMode]} mode");
-                                    }
-
+                                    MessageBox.Show("No accociation in CB.");
+                                    return;
                                 }
+                                foreach (var hvSwitchAssociation in hvSwitchAssociations)
+                                {
+                                    if (hvSwitchAssociation.FromElement.AssetGroup.Name == "Substation" && hvSwitchAssociation.ToElement.AssetGroup.Name == "HV Switch")
+                                    {
+                                        var deviceLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == "HV Switch");
+                                        var substationLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == "Substation");
+                                        if (deviceLayer == null)
+                                        {
+                                            MessageBox.Show("Fail to found layer HV Switch.");
+                                            return;
+                                        }
+                                        if (substationLayer == null)
+                                        {
+                                            MessageBox.Show("Fail to found layer Substation.");
+                                            return;
+                                        }
+                                        deviceLayer.GetFeatureClass().Search();
+                                        // Now you can run selections, queries, etc.
+                                        FeatureSnapshot firstSwitchFeature = null;
+                                        FeatureSnapshot firstSubstationFeature = null;
+                                        var qf = new QueryFilter { WhereClause = "GLOBALID = '{" + hvSwitchAssociation.ToElement.GlobalID + "}'" };
+                                        using (var switchCursor = deviceLayer.GetFeatureClass().Search(qf))
+                                        {
+                                            if (switchCursor.MoveNext())
+                                            {
+                                                var row = switchCursor.Current;
+                                                var element = utilityNetwork.CreateElement(row);
+                                                var results = new SpatialSubgraphExtractor(utilityNetwork).Extract([element]);
+                                                var features = results.FeatureByGlobalId.Values;
+                                                firstSwitchFeature = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.ToElement.GlobalID);
+                                            }
+                                        }
+
+                                        qf.WhereClause = "GLOBALID = '{" + hvSwitchAssociation.FromElement.GlobalID + "}'";
+                                        using (var substationCusor = substationLayer.GetFeatureClass().Search(qf))
+                                        {
+
+                                            if (substationCusor.MoveNext())
+                                            {
+                                                var row = substationCusor.Current;
+                                                var element = utilityNetwork.CreateElement(row);
+                                                var results = new SpatialSubgraphExtractor(utilityNetwork).Extract([element]);
+                                                var features = results.FeatureByGlobalId.Values;
+                                                firstSubstationFeature = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.FromElement.GlobalID);
+                                            }
+                                        }
+
+                                        first = new SS_TO_SS_Model(firstSwitchFeature, utilityNetwork);
+                                        first.SSCODE = firstSubstationFeature.Attributes["SSNUM"]?.ToString();
+                                        first.SSNAME = firstSubstationFeature.Attributes["SSNAME"]?.ToString();
+                                        first.Source = firstSwitchFeature;
+                                        first.Substation = firstSubstationFeature;
+                                        this.SpareHVSwitch = first;
+                                        this.ShowSearchPanel = false;
+                                        this.ShowSpareCBUpdatePanel = true;
+                                    }
+                                }
+                                if (first == null)
+                                {
+                                    MessageBox.Show("No accociation between CB and Substation.");
+                                    return;
+                                }
+                                    
                             }
 
                         }
@@ -768,6 +896,7 @@ namespace CLP.ADMSUpdatePlugin
         public IEnumerable<FeatureSnapshot> Cables { get; set; }
         private SS_TO_SS_Model _firstHVSwitch;
         public SS_TO_SS_Model _secondHVSwitch;
+        private SS_TO_SS_Model _spareHVSwitch;
 
         public SS_TO_SS_Model FirstHVSwitch
         {
@@ -780,6 +909,12 @@ namespace CLP.ADMSUpdatePlugin
         {
             get => _secondHVSwitch;
             set => SetProperty(ref _secondHVSwitch, value);
+        }
+
+        public SS_TO_SS_Model SpareHVSwitch
+        {
+            get => _spareHVSwitch;
+            set => SetProperty(ref _spareHVSwitch, value);
         }
 
 
@@ -802,7 +937,7 @@ namespace CLP.ADMSUpdatePlugin
                     var layers = MapView.Active.Map
                         .GetLayersAsFlattenedList()
                         .OfType<FeatureLayer>()
-                        .Where(l => string.Equals(l.GetTable().GetName(), table.GetName(), StringComparison.OrdinalIgnoreCase));
+                        .Where(l => string.Equals((l == null) ? l.GetTable().GetName():"", table.GetName(), StringComparison.OrdinalIgnoreCase));
                     foreach (var layer in layers)
                     {
                         QueryFilter queryFilter = new QueryFilter() { };
@@ -889,8 +1024,8 @@ namespace CLP.ADMSUpdatePlugin
         }
 
         private Dictionary<ADMSUpdateMode, string> _updateModels = new Dictionary<ADMSUpdateMode, string>() {
-            {ADMSUpdateMode.SS_TO_SS,"Update SS To SS" },
-            {ADMSUpdateMode.SpareCB,"Update Spare CB" },
+            {ADMSUpdateMode.SS_TO_SS, "Update SS To SS" },
+            {ADMSUpdateMode.SpareCB, "Update Spare CB" },
         };
 
 

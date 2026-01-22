@@ -204,6 +204,11 @@ namespace CLP.ADMSUpdatePlugin
             return ReplaceMultipleSpaces(part2);
         }
 
+        public static string GetSpare_CB_SOM_CCT(SS_TO_SS_Model first)
+        {
+            string bbPart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $"B{first.BB_NUMBER}/";
+            return $"SPARE (PNL {bbPart}{first.PANEL_NO})";
+        }
         public static string GetADMSNameForCBToCB(SS_TO_SS_Model first, SS_TO_SS_Model second)
         {
             // ADMS Name for CB to CB
@@ -230,6 +235,18 @@ namespace CLP.ADMSUpdatePlugin
             {
                 part3 = $"CBD{first.PANEL_NO ?? ""}5";
             }
+            return $"{substationSource}{part2}{part3}";
+        }
+
+        public static string GetADMSNameForSpareCB(SS_TO_SS_Model first)
+        {
+            string substationSource = ReplaceMultipleSpaces(first.SSNAME.Replace("S/S", "")).PadRight(26);
+            string bbPart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $"B{first.BB_NUMBER}/";
+            string part2 = $"SPARE (PNL {bbPart}{first.PANEL_NO})".PadRight(41);
+            string assetTypeAbbreviation = AssetTypeAbbreviations.ContainsKey(first.Source.AssetTypeName)
+                                            ? AssetTypeAbbreviations[first.Source.AssetTypeName]
+                                            : "";
+            string part3 = $"{assetTypeAbbreviation} ".PadRight(13);
             return $"{substationSource}{part2}{part3}";
         }
 

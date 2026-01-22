@@ -152,24 +152,46 @@
 
 
         <Grid Margin="8" Visibility="{Binding ShowSpareCBUpdatePanel,Converter={StaticResource BooleanToVisibilityConverter}}">
-            <StackPanel Orientation="Vertical">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Substation Name:" />
-                    <TextBlock Text="{Binding SSNAME}"/>
-                    <CheckBox IsChecked="{Binding IsChecked}" Content="Update" Margin="5,0,0,0"></CheckBox>
-                </StackPanel>
-                <StackPanel Orientation="Vertical">
-                    <TextBlock Text="ADMS Name:" />
-                    <TextBox Text="{Binding ADMSName,Mode=OneTime}" IsReadOnly="True"/>
-                </StackPanel>
-                <StackPanel Orientation="Vertical">
-                    <TextBlock Text="ADMS Alias:" />
-                    <TextBox Text="{Binding ADMSAlias,Mode=OneTime}" IsReadOnly="True"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right" Margin="15">
-                    <Button Content="Back"  Command="{Binding BackCommand}" ></Button>
-                    <Button Content="Update"  Command="{Binding UpdateCommand}" Margin="5,0,0,0"></Button>
-                </StackPanel>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="1*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <StackPanel Orientation="Vertical" Grid.Row="0">
+                <TextBlock Text="Select update model:"  />
+                <ComboBox Margin="0,5,0,0" IsEnabled="False" ItemsSource="{Binding UpdateModels}" SelectedValue="{Binding UpdateMode,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" DisplayMemberPath="Value" SelectedValuePath="Key" />
+            </StackPanel>
+
+            <ScrollViewer Grid.Row="1">
+                <Grid Grid.Row="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+                    <Border CornerRadius="5" Grid.Row="0" Padding="5" Margin="5" BorderBrush="#f1f1f1" BorderThickness="1" DataContext="{Binding SpareHVSwitch}">
+                        <StackPanel Orientation="Vertical">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Substation Name:" />
+                                <TextBlock Text="{Binding SSNAME}"/>
+                                <CheckBox IsChecked="{Binding IsChecked}" Content="Update" Margin="5,0,0,0"></CheckBox>
+                            </StackPanel>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="ADMS Name:" />
+                                <TextBox Text="{Binding ADMSName,Mode=OneTime}" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="ADMS Alias:" />
+                                <TextBox Text="{Binding ADMSAlias,Mode=OneTime}" IsReadOnly="True"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </ScrollViewer>
+
+            <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right" Margin="15">
+                <Button Content="Back"  Command="{Binding BackCommand}" ></Button>
+                <Button Content="Update"  Command="{Binding UpdateCommand}" Margin="5,0,0,0"></Button>
             </StackPanel>
         </Grid>
     </Grid>
