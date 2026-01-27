@@ -126,9 +126,9 @@
                                     <TextBlock Text="Cable ADMS Name:" />
                                     <CheckBox IsChecked="{Binding UpdteCableADMSEnabled}" Content="Update" Margin="5,0,0,0"></CheckBox>
                                 </StackPanel>
-                              
+
                                 <TextBox Text="{Binding CableADMSName}"  IsReadOnly="True"/>
-                               
+
                             </StackPanel>
                             <StackPanel Orientation="Vertical">
                                 <TextBlock Text="Cable ADMS Alias:" />
@@ -138,12 +138,12 @@
                                 <TextBlock Text="Cable Total:" />
                                 <TextBox Text="{Binding CableTotal}" IsReadOnly="True"/>
                             </StackPanel>
-                          
+
                         </StackPanel>
                     </Border>
                 </Grid>
             </ScrollViewer>
-           
+
             <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right" Margin="15">
                 <Button Content="Back"  Command="{Binding BackCommand}" ></Button>
                 <Button Content="Update"  Command="{Binding UpdateCommand}" Margin="5,0,0,0"></Button>
@@ -194,6 +194,88 @@
                 <Button Content="Update"  Command="{Binding UpdateCommand}" Margin="5,0,0,0"></Button>
             </StackPanel>
         </Grid>
+
+        <Grid Margin="8" Visibility="{Binding ShowPolePanel,Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="1*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <StackPanel Orientation="Vertical" Grid.Row="0">
+                <TextBlock Text="Select update model:"  />
+                <ComboBox Margin="0,5,0,0" IsEnabled="False" ItemsSource="{Binding UpdateModels}" SelectedValue="{Binding UpdateMode,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" DisplayMemberPath="Value" SelectedValuePath="Key" />
+            </StackPanel>
+
+            <ScrollViewer Grid.Row="1">
+                <Grid Grid.Row="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Vertical">
+                        <Border CornerRadius="5" Grid.Row="0" Padding="5" Margin="5" BorderBrush="#f1f1f1" BorderThickness="1" DataContext="{Binding PoleDevice}">
+                            <StackPanel Orientation="Vertical">
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="GlobalID:" />
+                                    <TextBox Text="{Binding GLOBALID,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Asset Type:" />
+                                    <TextBox Text="{Binding ASSET_TYPE,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox IsChecked="{Binding IsTxInPole}" Content="Transformer In Pole" Margin="5,0,0,0"></CheckBox>
+                                    <CheckBox IsChecked="{Binding IsSingleDevice}" Content="Single Device In Pole" Margin="5,0,0,0"></CheckBox>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Circuit Name:" />
+                                    <TextBox Text="{Binding CIRCUIT_NAME,Mode=Default}" IsReadOnly="False"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Circuit ID:" />
+                                    <TextBox Text="{Binding CIRCUIT_ID,Mode=Default}" IsReadOnly="False"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="Pole No (From):" />
+                                        <TextBox Text="{Binding FROM_POLE_NUM,Mode=Default}" IsReadOnly="False"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="Pole No (To):" />
+                                        <TextBox Text="{Binding TO_POLE_NUM,Mode=Default}" IsReadOnly="False"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Substation Name:" />
+                                    <TextBox Text="{Binding SS_NAME,Mode=Default}" IsReadOnly="False"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Substation Number:" />
+                                    <TextBox Text="{Binding SS_NUM,Mode=Default}" IsReadOnly="False"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <StackPanel Grid.Row="1" Margin="5" Orientation="Vertical">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="ADMS Name:" />
+                                <Button Content="Preview"  Command="{Binding RefreshCommand}" ></Button>
+                            </StackPanel>
+                            <TextBox Text="{Binding ADMSNameDisplay,Mode=Default}" IsReadOnly="True"/>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="ADMS Alias:" />
+                                <TextBox Text="{Binding ADMSAliasDisplay,Mode=Default}" IsReadOnly="True"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </ScrollViewer>
+
+            <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right" Margin="15">
+                <Button Content="Back"  Command="{Binding BackCommand}" ></Button>
+                <Button Content="Update"  Command="{Binding UpdateCommand}" Margin="5,0,0,0"></Button>
+            </StackPanel>
+        </Grid>
     </Grid>
-  
+
 </UserControl>
