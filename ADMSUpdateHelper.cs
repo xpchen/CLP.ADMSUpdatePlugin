@@ -280,7 +280,8 @@ namespace CLP.ADMSUpdatePlugin
         private static readonly Dictionary<string, string> AssetTypeAbbreviations = new Dictionary<string, string>
         {
             { "Circuit Breaker", "CB" },
-            { "Source Circuit Breaker", "SCB" }
+            { "Source Circuit Breaker", "SCB" },
+            { "Switch", "LBS" },
         };
 
         public static string GetADMSAliasForCBToCB(SS_TO_SS_Model first, SS_TO_SS_Model second)

@@ -570,7 +570,7 @@ namespace CLP.ADMSUpdatePlugin
                 startElements.First().Terminal = startElements.First().AssetType.GetTerminalConfiguration().Terminals.FirstOrDefault(p => p.Name == "CB:Bus Side" || p.Name== "Source");
                 startElements.Last().Terminal = startElements.Last().AssetType.GetTerminalConfiguration().Terminals.FirstOrDefault(p => p.Name == "CB:Line Side" || p.Name == "Load");
             }
-            Tier sourceTier = domainNetwork.GetTier("LV");
+            Tier sourceTier = domainNetwork.GetTier("HV");
             TraceConfiguration cfg = sourceTier.GetTraceConfiguration();
             cfg.Propagators = new List<Propagator>();
             var catSub = utilityNetworkDefinition
@@ -1185,7 +1185,7 @@ namespace CLP.ADMSUpdatePlugin
                     var layers = MapView.Active.Map
                         .GetLayersAsFlattenedList()
                         .OfType<FeatureLayer>()
-                        .Where(l => string.Equals((l == null) ? l.GetTable().GetName():"", table.GetName(), StringComparison.OrdinalIgnoreCase));
+                        .Where(l => string.Equals((l.GetTable() != null) ? l.GetTable().GetName() : "", table.GetName(), StringComparison.OrdinalIgnoreCase));
                     foreach (var layer in layers)
                     {
                         QueryFilter queryFilter = new QueryFilter() { };
