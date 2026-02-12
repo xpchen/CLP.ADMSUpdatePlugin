@@ -351,6 +351,14 @@ public sealed class FeatureSnapshot
         }
     }
 
+    public bool IsHVBusNode
+    {
+        get
+        {
+            return this.AssetGroupName == "HV Connection Point" && this.AssetTypeName == "Bus Node";
+        }
+    }
+
     [JsonIgnore]
     public bool IsLvPillar
     {

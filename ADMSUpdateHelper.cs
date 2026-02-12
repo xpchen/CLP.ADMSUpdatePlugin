@@ -24,17 +24,16 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetCableADMSName(SS_TO_SS_Model src, SS_TO_SS_Model des, FeatureSnapshot cable, bool isTemplate=false)
         {
-            string textA = ReplaceMultipleSpaces(src.SSNAME.Replace("S/S", ""));
+            string textA = src.SSNAME.Replace("S/S", "");
             if (!String.IsNullOrEmpty(src.BB_NUMBER))
             {
                 textA += $" BD {src.BB_NUMBER}";
             }
-            textA = ReplaceMultipleSpaces(textA);
             if (textA.Length < 25)
             {
-                textA = textA.PadRight(25); // Pad the string to 25 characters
+                textA = ReplaceMultipleSpaces(textA).PadRight(25); // Pad the string to 25 characters
             }
-            string textB = ReplaceMultipleSpaces(des.SSNAME.Replace("S/S", ""));
+            string textB = des.SSNAME.Replace("S/S", "");
             if (des.Source.AssetGroupName == "Transformer")
             {
                 string txPart = String.IsNullOrEmpty(des.TX_NO) ? "" : $" D{des.TX_NO}";
@@ -182,9 +181,9 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetCB_SOM_SS(SS_TO_SS_Model first)
         {
-            string substationSource = ReplaceMultipleSpaces(first.SSNAME.Replace("S/S", ""));
-            string bbSourcePart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $"BD {first.BB_NUMBER}";
-            return $"{substationSource} {bbSourcePart}";
+            string substationSource = first.SSNAME.Replace("S/S", "");
+            string bbSourcePart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $" BD {first.BB_NUMBER}";
+            return ReplaceMultipleSpaces($"{substationSource}{bbSourcePart}");
         }
 
         public static string GetCB_SOM_CCT(SS_TO_SS_Model first, SS_TO_SS_Model second)
@@ -204,6 +203,11 @@ namespace CLP.ADMSUpdatePlugin
             return ReplaceMultipleSpaces(part2);
         }
 
+        public static string GetCB_Terminal_Substation(SS_TO_SS_Model first, SS_TO_SS_Model second)
+        {
+            return ReplaceMultipleSpaces($"{GetCB_SOM_SS(first)} - {GetCB_SOM_CCT(first, second)}");
+        }
+
         public static string GetSpare_CB_SOM_CCT(SS_TO_SS_Model first)
         {
             string bbPart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $"B{first.BB_NUMBER}/";
@@ -218,13 +222,13 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetIsolator_SOM_CCT(Pole_Model first)
         {
-            if (first.IsSingleDevice) return $"P.{first.FROM_POLE_NUM}";
+            if (first.IsSingleDevice) return ReplaceMultipleSpaces($"P.{first.FROM_POLE_NUM}");
             return ReplaceMultipleSpaces($"{first.CIRCUIT_NAME} P.{first.TO_POLE_NUM}");
         }
 
         public static string GetPMS_SOM_SS(Pole_Model first)
         {
-            if (first.IsSingleDevice) return $"{first.CIRCUIT_NAME}";
+            if (first.IsSingleDevice) return ReplaceMultipleSpaces($"{first.CIRCUIT_NAME}");
             return ReplaceMultipleSpaces($"{first.CIRCUIT_NAME} ({first.SS_NAME})");
         }
 

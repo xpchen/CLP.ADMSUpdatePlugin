@@ -139,6 +139,14 @@ namespace CLP.ADMSUpdatePlugin
             set => SetProperty(ref _busbar, value);
         }
 
+        private List<FeatureSnapshot> _busnodes;
+
+        public List<FeatureSnapshot> BusNodes
+        {
+            get => _busnodes;
+            set => SetProperty( ref _busnodes, value);
+        }
+
         public FeatureSnapshot Transformer { get; set; }
 
         private UtilityNetwork UtilityNetwork { get; set; }

@@ -56,7 +56,7 @@ namespace CLP.ADMSUpdatePlugin
                         switch (this.UpdateMode)
                         {
                             case ADMSUpdateMode.SS_TO_SS:
-                                SelectUpdateModeRemark = "Plz select a After Loading BUS ADMS ANAS: (Auto input) Hy Cable/Connector";
+                                SelectUpdateModeRemark = "Plz select a After Loading BUS ADMS ANAS: (Auto input) By Cable/Connector";
                                 break;
                             case ADMSUpdateMode.SpareCB:
                                 SelectUpdateModeRemark = "Plz select a Circuit breaker feature";
@@ -153,6 +153,25 @@ namespace CLP.ADMSUpdatePlugin
                                 insp["ADMS_Alias"] = firstBusbarAlias;
                                 editOp.Modify(insp);
                             }
+
+                            if (this.FirstHVSwitch.BusNodes != null)
+                            {
+                                var busNodeTable = un.GetTable(this.FirstHVSwitch.BusNodes.FirstOrDefault().Element.NetworkSource);
+                                // Update ADMS Name & Alias for BusNodes
+                                insp = new Inspector();
+                                foreach (FeatureSnapshot busNode in this.FirstHVSwitch.BusNodes)
+                                {
+                                    insp.Load(busNodeTable, busNode.ObjectID);
+                                    string firstBusbarName = this.FirstHVSwitch.BusADMSName;
+                                    string firstBusbarAlias = this.FirstHVSwitch.BusADMSAlias;
+                                    LoggerHelper.Info($"Updating ADMS_Name and ADMS_Alias for First HV Switch Busbar (ObjectID: {busNode.ObjectID}, AssetGroup: {busNode.AssetGroupName}, AssetType: {busNode.AssetTypeName})");
+                                    LoggerHelper.Info($"ADMS_Name: {firstBusbarName}, ADMS_Alias: {firstBusbarAlias}");
+
+                                    insp["ADMS_Name"] = firstBusbarName;
+                                    insp["ADMS_Alias"] = firstBusbarAlias;
+                                    editOp.Modify(insp);
+                                }
+                            }
                         }
                         if (this.SecondHVSwitch.IsChecked)
                         {
@@ -196,25 +215,67 @@ namespace CLP.ADMSUpdatePlugin
                                 editOp.Modify(insp);
                             }
 
+                            if (this.SecondHVSwitch.BusNodes != null)
+                            {
+                                var busNodeTable = un.GetTable(this.SecondHVSwitch.BusNodes.FirstOrDefault().Element.NetworkSource);
+                                // Update ADMS Name & Alias for BusNodes
+                                insp = new Inspector();
+                                foreach (FeatureSnapshot busNode in this.SecondHVSwitch.BusNodes)
+                                {
+                                    insp.Load(busNodeTable, busNode.ObjectID);
+                                    string firstBusbarName = this.SecondHVSwitch.BusADMSName;
+                                    string firstBusbarAlias = this.SecondHVSwitch.BusADMSAlias;
+                                    LoggerHelper.Info($"Updating ADMS_Name and ADMS_Alias for First HV Switch Busbar (ObjectID: {busNode.ObjectID}, AssetGroup: {busNode.AssetGroupName}, AssetType: {busNode.AssetTypeName})");
+                                    LoggerHelper.Info($"ADMS_Name: {firstBusbarName}, ADMS_Alias: {firstBusbarAlias}");
+
+                                    insp["ADMS_Name"] = firstBusbarName;
+                                    insp["ADMS_Alias"] = firstBusbarAlias;
+                                    editOp.Modify(insp);
+                                }
+                            }
                         }
                         if (UpdteCableADMSEnabled && Cables != null && Cables.Any())
                         {
-                            var cableTable = un.GetTable(this.Cables.First().Element.NetworkSource);
-                            foreach (var cable in Cables)
+                            var tmpCables = Cables.Where(p => p.AssetTypeName == "Cable");
+                            var tmpConnections = this.Cables.Where(p => p.AssetGroupName == "HV Connection Point");
+                            if(tmpCables.Any())
                             {
-                                insp = new Inspector();
-                                insp.Load(cableTable, cable.ObjectID);
-                                string cableName = cable.Attributes["ADMS_Name"]?.ToString();
-                                string cableAlias = cable.Attributes["ADMS_Alias"]?.ToString();
-                                string cableAssetGroup = cable.AssetGroupName;
-                                string cableAssetType = cable.AssetTypeName;
+                                var cableTable = un.GetTable(tmpCables.First().Element.NetworkSource);
+                                foreach (var cable in tmpCables)
+                                {
+                                    insp = new Inspector();
+                                    insp.Load(cableTable, cable.ObjectID);
+                                    string cableName = cable.Attributes["ADMS_Name"]?.ToString();
+                                    string cableAlias = cable.Attributes["ADMS_Alias"]?.ToString();
+                                    string cableAssetGroup = cable.AssetGroupName;
+                                    string cableAssetType = cable.AssetTypeName;
 
-                                LoggerHelper.Info($"Updating ADMS_Name and ADMS_Alias for Cable (ObjectID: {cable.ObjectID}, AssetGroup: {cableAssetGroup}, AssetType: {cableAssetType})");
-                                LoggerHelper.Info($"ADMS_Name: {cableName}, ADMS_Alias: {cableAlias}");
+                                    LoggerHelper.Info($"Updating ADMS_Name and ADMS_Alias for Cable (ObjectID: {cable.ObjectID}, AssetGroup: {cableAssetGroup}, AssetType: {cableAssetType})");
+                                    LoggerHelper.Info($"ADMS_Name: {cableName}, ADMS_Alias: {cableAlias}");
 
-                                insp["ADMS_Name"] = cableName;
-                                insp["ADMS_Alias"] = cableAlias;
-                                editOp.Modify(insp);
+                                    insp["ADMS_Name"] = cableName;
+                                    insp["ADMS_Alias"] = cableAlias;
+                                    insp["terminated_substation"] = ADMSUpdateHelper.GetCB_Terminal_Substation(this.FirstHVSwitch, SecondHVSwitch);
+                                    editOp.Modify(insp);
+                                }
+                            }
+                            if (tmpConnections.Any())
+                            {
+                                var connectionTable = un.GetTable(tmpConnections.First().Element.NetworkSource);
+                                foreach (var connection in tmpConnections)
+                                {
+                                    insp = new Inspector();
+                                    insp.Load(connectionTable, connection.ObjectID);
+                                    string cableAssetGroup = connection.AssetGroupName;
+                                    string cableAssetType = connection.AssetTypeName;
+                                    string terminated_substation = ADMSUpdateHelper.GetCB_Terminal_Substation(this.FirstHVSwitch, SecondHVSwitch);
+
+                                    LoggerHelper.Info($"Updating Terminated Substation for Joint/Termination (ObjectID: {connection.ObjectID}, AssetGroup: {cableAssetGroup}, AssetType: {cableAssetType})");
+                                    LoggerHelper.Info($"Terminated Substation: {terminated_substation}");
+
+                                    insp["terminated_substation"] = terminated_substation;
+                                    editOp.Modify(insp);
+                                }
                             }
                         }
                         if (!editOp.IsEmpty)
@@ -546,11 +607,16 @@ namespace CLP.ADMSUpdatePlugin
                     var results = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(traceResults);
                     var features = results.FeatureByGlobalId.Values;
                     var busBars = features.Where(p => p.IsHVBusbar);
+                    var busNodes = features.Where(p => p.IsHVBusNode);
                     if (busBars.Any())
                     {
                         hvSwitchModel.Busbar = busBars.FirstOrDefault();
                         String traceInfo = $"Trace BusBars INFO\nSWitch:[{startElements.First().ObjectID},{startElements.First().GlobalID}],BusBars :[{String.Join(",", busBars.Select(p => $"{p.ObjectID},{p.GlobalID}"))}]";
                         LoggerHelper.Info(traceInfo);
+                    }
+                    if (busNodes.Any())
+                    {
+                        hvSwitchModel.BusNodes = busNodes.ToList();
                     }
                 }
                 catch (Exception e)
@@ -656,7 +722,7 @@ namespace CLP.ADMSUpdatePlugin
                             if (this.UpdateMode == ADMSUpdateMode.SS_TO_SS)
                             {
                                 DomainNetwork domainNetwork = utilityNetworkDefinition.GetDomainNetwork("Electric");
-                                Tier sourceTier = domainNetwork.GetTier("LV");
+                                Tier sourceTier = domainNetwork.GetTier("HV");
                                 TraceConfiguration cfg = sourceTier.GetTraceConfiguration();
                                 cfg.Propagators = new List<Propagator>();
                                 var catSub = utilityNetworkDefinition
@@ -846,11 +912,17 @@ namespace CLP.ADMSUpdatePlugin
                                         this.FirstHVSwitch = first;
                                         this.SecondHVSwitch = second;
 
-                                        this.Cables = features.Where(p => p.AssetGroupName == "HV Line" && p.AssetTypeName == "Cable");
+                                        this.Cables = features.Where(p => p.AssetGroupName == "HV Line" && p.AssetTypeName == "Cable" 
+                                        || (p.AssetGroupName == "HV Connection Point" && (p.AssetTypeName == "Termination" || p.AssetTypeName == "Joint")));
                                         foreach (var cable in Cables)
                                         {
-                                            cable.Attributes["ADMS_Name"] = ADMSUpdateHelper.GetCableADMSName(first, second, cable);
-                                            cable.Attributes["ADMS_Alias"] = ADMSUpdateHelper.GetCableADMSAlias(first, second, cable);
+                                            if(cable.AssetTypeName == "Cable")
+                                            {
+                                                cable.Attributes["ADMS_Name"] = ADMSUpdateHelper.GetCableADMSName(first, second, cable);
+                                                cable.Attributes["ADMS_Alias"] = ADMSUpdateHelper.GetCableADMSAlias(first, second, cable);
+                                            }
+                                            cable.Attributes["terminated_substation"] = ADMSUpdateHelper.GetCB_Terminal_Substation(first, second);
+                                            
                                         }
                                         GetCableADMSInfo(Cables, first, second);
                                         this.ShowSearchPanel = false;
@@ -887,16 +959,16 @@ namespace CLP.ADMSUpdatePlugin
                                         second.Target = first;
                                         this.FirstHVSwitch = first;
                                         this.SecondHVSwitch = second;
-                                        this.Cables = features.Where(p => p.AssetGroupName == "HV Line" && p.AssetTypeName == "Cable");
+                                        this.Cables = features.Where(p => p.AssetGroupName == "HV Line" && p.AssetTypeName == "Cable" 
+                                        || (p.AssetGroupName == "HV Connection Point" && (p.AssetTypeName == "Termination" || p.AssetTypeName == "Joint")));
                                         foreach (var cable in Cables)
                                         {
-                                            cable.Attributes["ADMS_Name"] = ADMSUpdateHelper.GetCableADMSName(first, second, cable);
-                                            cable.Attributes["ADMS_Alias"] = ADMSUpdateHelper.GetCableADMSAlias(first, second, cable);
-                                        }
-                                        foreach (var cable in Cables)
-                                        {
-                                            cable.Attributes["ADMS_Name"] = ADMSUpdateHelper.GetCableADMSName(first, second, cable);
-                                            cable.Attributes["ADMS_Alias"] = ADMSUpdateHelper.GetCableADMSAlias(first, second, cable);
+                                            if(cable.AssetTypeName == "Cable")
+                                            {
+                                                cable.Attributes["ADMS_Name"] = ADMSUpdateHelper.GetCableADMSName(first, second, cable);
+                                                cable.Attributes["ADMS_Alias"] = ADMSUpdateHelper.GetCableADMSAlias(first, second, cable);
+                                            }
+                                            cable.Attributes["terminated_substation"] = ADMSUpdateHelper.GetCB_Terminal_Substation(first, second);
                                         }
                                         GetCableADMSInfo(Cables, first, second);
                                         this.ShowSearchPanel = false;
