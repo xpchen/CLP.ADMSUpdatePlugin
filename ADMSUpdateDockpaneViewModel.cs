@@ -53,6 +53,7 @@ namespace CLP.ADMSUpdatePlugin
             {
                 case "UpdateMode":
                     {
+                        this.SelectionElements = [];
                         switch (this.UpdateMode)
                         {
                             case ADMSUpdateMode.SS_TO_SS:
@@ -606,17 +607,20 @@ namespace CLP.ADMSUpdatePlugin
                     IReadOnlyList<Result> traceResults = tracer.Trace(traceArgument);
                     var results = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(traceResults);
                     var features = results.FeatureByGlobalId.Values;
-                    var busBars = features.Where(p => p.IsHVBusbar);
-                    var busNodes = features.Where(p => p.IsHVBusNode);
-                    if (busBars.Any())
+                    if (!hvSwitchModel.SSNAME.Contains("CUST EQPT"))
                     {
-                        hvSwitchModel.Busbar = busBars.FirstOrDefault();
-                        String traceInfo = $"Trace BusBars INFO\nSWitch:[{startElements.First().ObjectID},{startElements.First().GlobalID}],BusBars :[{String.Join(",", busBars.Select(p => $"{p.ObjectID},{p.GlobalID}"))}]";
-                        LoggerHelper.Info(traceInfo);
-                    }
-                    if (busNodes.Any())
-                    {
-                        hvSwitchModel.BusNodes = busNodes.ToList();
+                        var busBars = features.Where(p => p.IsHVBusbar);
+                        var busNodes = features.Where(p => p.IsHVBusNode);
+                        if (busBars.Any())
+                        {
+                            hvSwitchModel.Busbar = busBars.FirstOrDefault();
+                            String traceInfo = $"Trace BusBars INFO\nSWitch:[{startElements.First().ObjectID},{startElements.First().GlobalID}],BusBars :[{String.Join(",", busBars.Select(p => $"{p.ObjectID},{p.GlobalID}"))}]";
+                            LoggerHelper.Info(traceInfo);
+                        }
+                        if (busNodes.Any())
+                        {
+                            hvSwitchModel.BusNodes = busNodes.ToList();
+                        }
                     }
                 }
                 catch (Exception e)
@@ -713,6 +717,7 @@ namespace CLP.ADMSUpdatePlugin
                 var utilityNetwork = MapView.Active?.Map
                     .GetLayersAsFlattenedList()
                     .OfType<UtilityNetworkLayer>().FirstOrDefault()?.GetUtilityNetwork();
+                LoggerHelper.Info($"Selected model: {this.UpdateMode}");
                 using (UtilityNetworkDefinition utilityNetworkDefinition = utilityNetwork.GetDefinition())
                 {
                     using (NetworkSource networkSource = utilityNetworkDefinition.GetNetworkSource("ElectricDevice"))
@@ -723,6 +728,7 @@ namespace CLP.ADMSUpdatePlugin
                             {
                                 DomainNetwork domainNetwork = utilityNetworkDefinition.GetDomainNetwork("Electric");
                                 Tier sourceTier = domainNetwork.GetTier("HV");
+                                LoggerHelper.Info($"Trace start at: {DateTime.Now}");
                                 TraceConfiguration cfg = sourceTier.GetTraceConfiguration();
                                 cfg.Propagators = new List<Propagator>();
                                 var catSub = utilityNetworkDefinition
@@ -784,6 +790,7 @@ namespace CLP.ADMSUpdatePlugin
                                     Tracer tracer = traceManager.GetTracer<ConnectedTracer>();
                                     IReadOnlyList<Result> traceResults = tracer.Trace(traceArgument);
                                     var results = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(traceResults);
+                                    LoggerHelper.Info($"Trace end at: {DateTime.Now}");
                                     await HighlightPathOnMapAsync(utilityNetwork, results.FeatureByGlobalId.Values);
 
                                     var features = results.FeatureByGlobalId.Values;
@@ -801,13 +808,12 @@ namespace CLP.ADMSUpdatePlugin
                                     SS_TO_SS_ResultType resultType = SS_TO_SS_ResultType.CB_TO_CB;
                                     if (transfomers.Any())
                                     {
-
                                         resultType = SS_TO_SS_ResultType.CB_TO_TRANSFORMER;
                                     }
                                     var hvSwitchAssociations = utilityNetwork.TraverseAssociations(hvSwitchs.Select(p => p.Element), new TraverseAssociationsDescription(TraversalDirection.Ascending));
                                     SS_TO_SS_Model first = null;
                                     SS_TO_SS_Model second = null;
-
+                                    LoggerHelper.Info($"Get Association Info start at: {DateTime.Now}");
                                     foreach (var hvSwitchAssociation in hvSwitchAssociations.Associations)
                                     {
                                         if (hvSwitchAssociation.FromElement.AssetGroup.Name == "Substation"
@@ -815,8 +821,10 @@ namespace CLP.ADMSUpdatePlugin
                                         {
                                             if (first == null)
                                             {
-                                                var firstSwitchFeature = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.ToElement.GlobalID);
-                                                var firstSubstation = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.FromElement.GlobalID);
+                                                var firstSwitchFeature = features.FirstOrDefault(p => 
+                                                    p.Element.GlobalID == hvSwitchAssociation.ToElement.GlobalID);
+                                                var firstSubstation = features.FirstOrDefault(p => 
+                                                    p.Element.GlobalID == hvSwitchAssociation.FromElement.GlobalID);
                                                 first = new SS_TO_SS_Model(firstSwitchFeature, utilityNetwork);
                                                 first.SSCODE = firstSubstation.Attributes["SSNUM"]?.ToString();
                                                 first.SSNAME = firstSubstation.Attributes["SSNAME"]?.ToString();
@@ -825,8 +833,10 @@ namespace CLP.ADMSUpdatePlugin
                                             }
                                             else
                                             {
-                                                var secondSwitchFeature = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.ToElement.GlobalID);
-                                                var secondSubstation = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.FromElement.GlobalID);
+                                                var secondSwitchFeature = features.FirstOrDefault(p => 
+                                                    p.Element.GlobalID == hvSwitchAssociation.ToElement.GlobalID);
+                                                var secondSubstation = features.FirstOrDefault(p => 
+                                                    p.Element.GlobalID == hvSwitchAssociation.FromElement.GlobalID);
                                                 second = new SS_TO_SS_Model(secondSwitchFeature, utilityNetwork);
                                                 second.SSCODE = secondSubstation.Attributes["SSNUM"]?.ToString();
                                                 second.SSNAME = secondSubstation.Attributes["SSNAME"]?.ToString();
@@ -846,7 +856,8 @@ namespace CLP.ADMSUpdatePlugin
                                                 {
                                                     var transformerElement = supportStructureAssociation.FromElement.AssetGroup.Name == "Transformer" ?
                                                         supportStructureAssociation.FromElement : supportStructureAssociation.ToElement;
-                                                    var transformerAssociations = utilityNetwork.GetAssociations(transformerElement, AssociationType.Containment);
+                                                    var transformerAssociations = utilityNetwork.GetAssociations(transformerElement, 
+                                                        AssociationType.Containment);
                                                     foreach (var transfomerAssociation in transformerAssociations)
                                                     {
                                                         var secondSwitchFeature = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.ToElement.GlobalID);
@@ -862,6 +873,7 @@ namespace CLP.ADMSUpdatePlugin
                                             //var supportStructureAssociations = utilityNetwork.TraverseAssociations(new Element[] { hvSwitchAssociation.FromElement }, new TraverseAssociationsDescription(TraversalDirection.Ascending));
                                         }
                                     }
+                                    LoggerHelper.Info($"Get Association Info end at: {DateTime.Now}");
                                     if ((resultType == SS_TO_SS_ResultType.CB_TO_CB || resultType == SS_TO_SS_ResultType.CB_TO_SCB) && first != null && second != null)
                                     {
                                         if (String.IsNullOrEmpty(first.SSNAME) || String.IsNullOrEmpty(first.SSCODE) || String.IsNullOrEmpty(second.SSCODE) || String.IsNullOrEmpty(second.SSNAME))
@@ -935,7 +947,7 @@ namespace CLP.ADMSUpdatePlugin
                                         foreach (var transfomerhAssociation in transfomerAssociations.Associations)
                                         {
                                             if (transfomerhAssociation.FromElement.AssetGroup.Name == "Substation"
-                                       && transfomerhAssociation.ToElement.AssetGroup.Name == "Transformer")
+                                                && transfomerhAssociation.ToElement.AssetGroup.Name == "Transformer")
                                             {
                                                 var substation = new SpatialSubgraphExtractor(utilityNetwork).Extract(new Element[] { transfomerhAssociation.FromElement }).FeatureByGlobalId.Values.FirstOrDefault();
                                                 second = new SS_TO_SS_Model(transfomer, utilityNetwork);
@@ -1079,10 +1091,11 @@ namespace CLP.ADMSUpdatePlugin
                                             MessageBox.Show($"Fail to found layer {elementAssociation.FromElement.AssetGroup.Name}.");
                                             return;
                                         }
-                                        deviceLayer.GetFeatureClass().Search();
+                                        //deviceLayer.GetFeatureClass().Search();
                                         // Now you can run selections, queries, etc.
                                         FeatureSnapshot firstSwitchFeature = null;
                                         FeatureSnapshot firstPoleFeature = null;
+                                        Row txAttributes = null;
                                         var qf = new QueryFilter { WhereClause = "GLOBALID = '{" + elementAssociation.ToElement.GlobalID + "}'" };
                                         using (var switchCursor = deviceLayer.GetFeatureClass().Search(qf))
                                         {
@@ -1110,15 +1123,66 @@ namespace CLP.ADMSUpdatePlugin
                                             }
                                         }
 
+                                        if(firstSwitchFeature.AssetGroupName != "Transformer")
+                                        {
+                                            var poleAssociations = utilityNetwork.GetAssociations(firstPoleFeature.Element);
+                                            foreach (var poleAssociation in poleAssociations)
+                                            {
+                                                if (poleAssociation.ToElement.AssetGroup.Name == "Transformer" ||
+                                                    (poleAssociation.ToElement.AssetGroup.Name == "HV Switch" ||
+                                                    poleAssociation.ToElement.AssetType.Name == "Switch"))
+                                                {
+                                                    var transformerLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == elementAssociation.ToElement.AssetGroup.Name);
+                                                    if (transformerLayer == null)
+                                                    {
+                                                        MessageBox.Show($"Fail to found layer {poleAssociation.ToElement.AssetGroup.Name}.");
+                                                        return;
+                                                    }
+                                                    var qf_tx = new QueryFilter { WhereClause = "GLOBALID = '{" + poleAssociation.ToElement.GlobalID + "}'" };
+                                                    using (var switchCursor = transformerLayer.GetFeatureClass().Search(qf_tx))
+                                                    {
+                                                        if (switchCursor.MoveNext())
+                                                        {
+                                                            var row = switchCursor.Current;
+                                                            txAttributes = row;
+                                                        }
+                                                    }
+                                                    break;
+                                                }
+                                            }
+                                        }
+
+
                                         first = new Pole_Model(firstSwitchFeature, utilityNetwork);
                                         first.CIRCUIT_NAME = firstPoleFeature.Attributes["circuitname"]?.ToString();
                                         first.FROM_POLE_NUM = firstPoleFeature.Attributes["polenum"]?.ToString();
                                         first.Source = firstSwitchFeature;
                                         first.Pole = firstPoleFeature;
+                                        if(txAttributes != null)
+                                        {
+                                            first.SS_NUM = txAttributes["SSNUM"] != null ? $"{txAttributes["SSNUM"]}" : "";
+                                            first.SS_NAME = txAttributes["SSNAME"] != null ? $"{txAttributes["SSNAME"]}" : "";
+                                        }
                                         this.PoleDevice = first;
                                         this.ShowSearchPanel = false;
                                         this.ShowPolePanel = true;
+                                        break;
                                     }
+                                    //else if (elementAssociation.FromElement.AssetGroup.Name == "Substation")
+                                    //{
+                                    //    var deviceLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == elementAssociation.ToElement.AssetGroup.Name);
+                                    //    var substationLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == elementAssociation.FromElement.AssetGroup.Name);
+                                    //    if (deviceLayer == null)
+                                    //    {
+                                    //        MessageBox.Show($"Fail to found layer {elementAssociation.ToElement.AssetGroup.Name}.");
+                                    //        return;
+                                    //    }
+                                    //    if (substationLayer == null)
+                                    //    {
+                                    //        MessageBox.Show($"Fail to found layer {elementAssociation.FromElement.AssetGroup.Name}.");
+                                    //        return;
+                                    //    }
+                                    //}
                                 }
                             }
                         }

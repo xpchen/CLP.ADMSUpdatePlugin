@@ -293,7 +293,8 @@ namespace CLP.ADMSUpdatePlugin
             string assetTypeAbbreviation = AssetTypeAbbreviations.ContainsKey(first.Source.AssetTypeName)
                                             ? AssetTypeAbbreviations[first.Source.AssetTypeName]
                                             : "";
-            string part2 = $"PNL {bbSourcePart}{panelPart}".PadRight(15);
+            string panelUnit = first.SSNAME.Contains("CUST EQPT") ? "BAY" : "PNL";
+            string part2 = $"{panelUnit} {bbSourcePart}{panelPart}".PadRight(15);
             string part3 = $"{assetTypeAbbreviation} ".PadRight(8);
             if (first.Source.AssetTypeName == "Source Circuit Breaker")
             {

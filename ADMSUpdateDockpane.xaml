@@ -224,8 +224,8 @@
                                     <TextBlock Text="Asset Type:" />
                                     <TextBox Text="{Binding ASSET_TYPE,Mode=OneTime}" IsReadOnly="True"/>
                                 </StackPanel>
-                                <StackPanel Orientation="Horizontal">
-                                    <CheckBox IsChecked="{Binding IsTxInPole}" Content="Transformer In Pole" Margin="5,0,0,0"></CheckBox>
+                                <StackPanel Margin="0,5,0,5" Orientation="Horizontal">
+                                    <CheckBox IsChecked="{Binding IsTxInPole}" Content="Transformer/PMS In Pole" Margin="5,0,0,0"></CheckBox>
                                     <CheckBox IsChecked="{Binding IsSingleDevice}" Content="Single Device In Pole" Margin="5,0,0,0"></CheckBox>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical">
@@ -241,7 +241,7 @@
                                         <TextBlock Text="Pole No (From):" />
                                         <TextBox Text="{Binding FROM_POLE_NUM,Mode=Default}" IsReadOnly="False"/>
                                     </StackPanel>
-                                    <StackPanel Orientation="Vertical">
+                                    <StackPanel Margin="10,0,0,0" Orientation="Vertical">
                                         <TextBlock Text="Pole No (To):" />
                                         <TextBox Text="{Binding TO_POLE_NUM,Mode=Default}" IsReadOnly="False"/>
                                     </StackPanel>
@@ -259,7 +259,7 @@
                         <StackPanel Grid.Row="1" Margin="5" Orientation="Vertical">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="ADMS Name:" />
-                                <Button Content="Preview"  Command="{Binding RefreshCommand}" ></Button>
+                                <Button Margin="10,0,0,2" Content="Preview"  Command="{Binding RefreshCommand}" ></Button>
                             </StackPanel>
                             <TextBox Text="{Binding ADMSNameDisplay,Mode=Default}" IsReadOnly="True"/>
                             <StackPanel Orientation="Vertical">
