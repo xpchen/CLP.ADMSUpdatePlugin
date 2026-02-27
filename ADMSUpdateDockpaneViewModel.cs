@@ -63,7 +63,7 @@ namespace CLP.ADMSUpdatePlugin
                                 SelectUpdateModeRemark = "Plz select a Circuit breaker feature";
                                 break;
                             case ADMSUpdateMode.Pole:
-                                SelectUpdateModeRemark = "Plz select a Pole feature (Isolator/Fuse/Transformer/Switch)";
+                                SelectUpdateModeRemark = "Plz select a Pole feature (Isolator/Fuse/Transformer/Switch/Subring Circuit Breaker)";
                                 break;
                             default:
                                 break;
@@ -98,7 +98,7 @@ namespace CLP.ADMSUpdatePlugin
                     return;
                 }
 
-                LoggerHelper.Info("Starting ADMS Name & Alias update process.");
+                LoggerHelper.Info($"Starting ADMS Name & Alias update process at {DateTime.Now}.");
 
                 EditOperation editOp = new EditOperation();
                 Inspector insp = new Inspector();
@@ -380,6 +380,11 @@ namespace CLP.ADMSUpdatePlugin
                             insp["SOM_SS"] = ADMSUpdateHelper.GetPMS_SOM_SS(this.PoleDevice);
                             insp["SOM_CCT"] = ADMSUpdateHelper.GetPMS_SOM_CCT(this.PoleDevice);
                         }
+                        else if (this.PoleDevice.Source.AssetTypeName == "Subring Circuit Breaker")
+                        {
+                            insp["SOM_SS"] = ADMSUpdateHelper.GetSubringCB_SOM_SS(this.PoleDevice);
+                            insp["SOM_CCT"] = ADMSUpdateHelper.GetSubringCB_SOM_CCT(this.PoleDevice);
+                        }
 
                         editOp.Modify(insp);
                         
@@ -409,6 +414,7 @@ namespace CLP.ADMSUpdatePlugin
                     LoggerHelper.Error("FirstHVSwitch or SecondHVSwitch is null. Update aborted.");
                     MessageBox.Show("FirstHVSwitch or SecondHVSwitch is null.");
                 }
+                LoggerHelper.Info($"Ending ADMS Name & Alias update process at {DateTime.Now}.");
             });
         }
 
@@ -538,7 +544,8 @@ namespace CLP.ADMSUpdatePlugin
                                         var element = un.CreateElement(cursor.Current);
                                         if (element.AssetGroup.Name == "HV Switch" && (element.AssetType.Name == "Isolator" || element.AssetType.Name == "Switch") 
                                         || element.AssetGroup.Name == "Transformer" && element.AssetType.Name == "HV PM TX"
-                                        || element.AssetGroup.Name == "HV Fuse" && element.AssetType.Name == "Fuse")
+                                        || element.AssetGroup.Name == "HV Fuse" && element.AssetType.Name == "Fuse"
+                                        || element.AssetGroup.Name == "HV Switch" && element.AssetType.Name == "Subring Circuit Breaker")
                                         {
                                             selectionElements.Add(element);
                                         }
@@ -999,6 +1006,7 @@ namespace CLP.ADMSUpdatePlugin
                             else if (this.UpdateMode == ADMSUpdateMode.SpareCB)
                             {
                                 var startElement = this.SelectionElement;
+                                LoggerHelper.Info($"Starting to get Spare HV Switch Association at {DateTime.Now}");
                                 var hvSwitchAssociations = utilityNetwork.GetAssociations(startElement);
                                 SS_TO_SS_Model first = null;
                                 if (hvSwitchAssociations.Count() == 0)
@@ -1063,6 +1071,7 @@ namespace CLP.ADMSUpdatePlugin
                                         this.ShowSpareCBUpdatePanel = true;
                                     }
                                 }
+                                LoggerHelper.Info($"Ending to get Spare HV Switch Association at {DateTime.Now}");
                                 if (first == null)
                                 {
                                     MessageBox.Show("No accociation between CB and Substation.");
@@ -1073,6 +1082,7 @@ namespace CLP.ADMSUpdatePlugin
                             else if (this.UpdateMode == ADMSUpdateMode.Pole)
                             {
                                 var startElement = this.SelectionElement;
+                                LoggerHelper.Info($"Starting to get Pole/Substation feature Association at {DateTime.Now}");
                                 var elementAssociations = utilityNetwork.GetAssociations(startElement);
                                 Pole_Model first = null;
                                 foreach (var elementAssociation in elementAssociations)
@@ -1168,22 +1178,66 @@ namespace CLP.ADMSUpdatePlugin
                                         this.ShowPolePanel = true;
                                         break;
                                     }
-                                    //else if (elementAssociation.FromElement.AssetGroup.Name == "Substation")
-                                    //{
-                                    //    var deviceLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == elementAssociation.ToElement.AssetGroup.Name);
-                                    //    var substationLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == elementAssociation.FromElement.AssetGroup.Name);
-                                    //    if (deviceLayer == null)
-                                    //    {
-                                    //        MessageBox.Show($"Fail to found layer {elementAssociation.ToElement.AssetGroup.Name}.");
-                                    //        return;
-                                    //    }
-                                    //    if (substationLayer == null)
-                                    //    {
-                                    //        MessageBox.Show($"Fail to found layer {elementAssociation.FromElement.AssetGroup.Name}.");
-                                    //        return;
-                                    //    }
-                                    //}
+                                    else if (elementAssociation.FromElement.AssetGroup.Name == "Substation" 
+                                    && elementAssociation.ToElement.AssetType.Name == "Subring Circuit Breaker")
+                                    {
+                                        var deviceLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == elementAssociation.ToElement.AssetGroup.Name);
+                                        var substationLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == elementAssociation.FromElement.AssetGroup.Name);
+                                        if (deviceLayer == null)
+                                        {
+                                            MessageBox.Show($"Fail to found layer {elementAssociation.ToElement.AssetGroup.Name}.");
+                                            return;
+                                        }
+                                        if (substationLayer == null)
+                                        {
+                                            MessageBox.Show($"Fail to found layer {elementAssociation.FromElement.AssetGroup.Name}.");
+                                            return;
+                                        }
+
+                                        FeatureSnapshot firstSwitchFeature = null;
+                                        FeatureSnapshot firstSubstationFeature = null;
+
+                                        var qf = new QueryFilter { WhereClause = "GLOBALID = '{" + elementAssociation.ToElement.GlobalID + "}'" };
+                                        using (var switchCursor = deviceLayer.GetFeatureClass().Search(qf))
+                                        {
+                                            if (switchCursor.MoveNext())
+                                            {
+                                                var row = switchCursor.Current;
+                                                var element = utilityNetwork.CreateElement(row);
+                                                var results = new SpatialSubgraphExtractor(utilityNetwork).Extract([element]);
+                                                var features = results.FeatureByGlobalId.Values;
+                                                firstSwitchFeature = features.FirstOrDefault(p => p.Element.GlobalID == elementAssociation.ToElement.GlobalID);
+                                            }
+                                        }
+
+                                        qf.WhereClause = "GLOBALID = '{" + elementAssociation.FromElement.GlobalID + "}'";
+                                        using (var substationCusor = substationLayer.GetFeatureClass().Search(qf))
+                                        {
+
+                                            if (substationCusor.MoveNext())
+                                            {
+                                                var row = substationCusor.Current;
+                                                var element = utilityNetwork.CreateElement(row);
+                                                var results = new SpatialSubgraphExtractor(utilityNetwork).Extract([element]);
+                                                var features = results.FeatureByGlobalId.Values;
+                                                firstSubstationFeature = features.FirstOrDefault(p => p.Element.GlobalID == elementAssociation.FromElement.GlobalID);
+                                            }
+                                        }
+
+                                        first = new Pole_Model(firstSwitchFeature, utilityNetwork);
+                                        first.SS_NAME = firstSubstationFeature.Attributes["SSNAME"]?.ToString();
+                                        first.SS_NUM = firstSubstationFeature.Attributes["SSNUM"]?.ToString();
+                                        first.FROM_POLE_NUM = firstSwitchFeature.Attributes["PANEL_NO"]?.ToString();
+                                        first.Source = firstSwitchFeature;
+                                        first.Pole = firstSubstationFeature;
+
+                                        this.PoleDevice = first;
+                                        this.ShowSearchPanel = false;
+                                        this.ShowPolePanel = true;
+                                        break;
+                                    }
                                 }
+                                LoggerHelper.Info($"Ending to get Pole/Substation feature Association at {DateTime.Now}");
                             }
                         }
                         catch (Exception e)

@@ -81,6 +81,7 @@ namespace CLP.ADMSUpdatePlugin
                 if (this.ASSET_TYPE == "Fuse") return ADMSUpdateHelper.GetADMSNameForFuse(this);
                 if (this.ASSET_TYPE == "HV PM TX") return ADMSUpdateHelper.GetADMSNameForTransformer(this);
                 if (this.ASSET_TYPE == "Switch") return ADMSUpdateHelper.GetADMSNameForPMS(this);
+                if (this.ASSET_TYPE == "Subring Circuit Breaker") return ADMSUpdateHelper.GetADMSNameForSubringCB(this);
                 return "";
             }
         }
@@ -93,6 +94,7 @@ namespace CLP.ADMSUpdatePlugin
                 if (this.ASSET_TYPE == "Fuse") return ADMSUpdateHelper.GetADMSAliasForFuse(this);
                 if (this.ASSET_TYPE == "HV PM TX") return ADMSUpdateHelper.GetADMSAliasForTransformer(this);
                 if (this.ASSET_TYPE == "Switch") return ADMSUpdateHelper.GetADMSAliasForPMS(this);
+                if (this.ASSET_TYPE == "Subring Circuit Breaker") return ADMSUpdateHelper.GetADMSAliasForSubringCB(this);
                 return "";
             }
         }

@@ -238,7 +238,7 @@
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal">
                                     <StackPanel Orientation="Vertical">
-                                        <TextBlock Text="Pole No (From):" />
+                                        <TextBlock Text="Pole/Panel No(From):" />
                                         <TextBox Text="{Binding FROM_POLE_NUM,Mode=Default}" IsReadOnly="False"/>
                                     </StackPanel>
                                     <StackPanel Margin="10,0,0,0" Orientation="Vertical">

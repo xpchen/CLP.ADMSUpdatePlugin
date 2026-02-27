@@ -236,6 +236,16 @@ namespace CLP.ADMSUpdatePlugin
         {
             return $"{first.FROM_POLE_NUM}";
         }
+
+        public static string GetSubringCB_SOM_SS(Pole_Model first)
+        {
+            return ReplaceMultipleSpaces($"{first.SS_NAME.Replace("S/S", "")}");
+        }
+
+        public static string GetSubringCB_SOM_CCT(Pole_Model first)
+        {
+            return ReplaceMultipleSpaces($"{first.CIRCUIT_NAME}");
+        }
         public static string GetADMSNameForCBToCB(SS_TO_SS_Model first, SS_TO_SS_Model second)
         {
             // ADMS Name for CB to CB
@@ -451,6 +461,35 @@ namespace CLP.ADMSUpdatePlugin
             part2 = $"FDR I".PadRight(15);
             part3 = $"PMS".PadRight(8);
             return $"{part1}{part2}{part3}";
+        }
+
+        public static string GetADMSNameForSubringCB(Pole_Model first)
+        {
+            // ADMS Name for Subring CB
+            string substationSource = ReplaceMultipleSpaces(first.SS_NAME.Replace("S/S", "")).PadRight(26);
+            //string bbSourcePart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $"BD {first.BB_NUMBER}-";
+            string substationTarget = ReplaceMultipleSpaces($"{first.CIRCUIT_NAME}");
+            string bbTargetPart = "";
+
+            //string serialNumberPart = string.IsNullOrEmpty(first.SERIALNUMBER) ? "" : $" #{first.SERIALNUMBER}";
+            string part2 = $"{substationTarget}{bbTargetPart}".PadRight(41);
+            string assetTypeAbbreviation = "CB";
+            string part3 = $"{assetTypeAbbreviation} ".PadRight(13);
+            return $"{substationSource}{part2}{part3}";
+        }
+
+        public static string GetADMSAliasForSubringCB(Pole_Model first)
+        {
+            // ADMS Alias for SubringCB
+            string substationSource = first.SS_NUM.PadRight(7);
+            //string bbSourcePart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $"B{first.BB_NUMBER}/";
+            string panelPart = (string.IsNullOrEmpty(first.FROM_POLE_NUM) ? "" : first.FROM_POLE_NUM);
+            string assetTypeAbbreviation = "CB";
+            string panelUnit = first.SS_NAME.Contains("CUST EQPT") ? "BAY" : "PNL";
+            string part2 = $"{panelUnit} {panelPart}".PadRight(15);
+            string part3 = $"{assetTypeAbbreviation} ".PadRight(8);
+
+            return $"{substationSource}{part2}{part3}";
         }
     }
 
