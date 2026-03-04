@@ -37,9 +37,27 @@ namespace CLP.ADMSUpdatePlugin
             set => SetProperty(ref _admsAliasDisplay, value);
         }
 
+        // Below value for Pole Cable
+        private string _cableCircuitName;
+
+        private string _cableCircuitID;
+
+        public string CABLE_CIRCUIT_NAME
+        {
+            get => _cableCircuitName;
+            set => SetProperty(ref _cableCircuitName, value);
+        }
+
+        public string CABLE_CIRCUIT_ID
+        {
+            get => _cableCircuitID;
+            set => SetProperty(ref _cableCircuitID, value);
+        }
+
         protected ADMSUpdateDockpaneViewModel()
         {
-            this.NextStepCommand = new RelayCommand(NextStepAsync, () => this.SelectionElement != null);
+            this.NextStepCommand = new RelayCommand(NextStepAsync, () => this.SelectionElement != null || 
+                                                                        (this.UpdateMode == ADMSUpdateMode.PoleCable && this.SelectionElements.Count != 0));
             this.BackCommand = new RelayCommand(Back);
             this.UpdateCommand = new RelayCommand(UpdateAsync);
             this.RefreshCommand = new RelayCommand(RefreshADMS);
@@ -64,6 +82,9 @@ namespace CLP.ADMSUpdatePlugin
                                 break;
                             case ADMSUpdateMode.Pole:
                                 SelectUpdateModeRemark = "Plz select a Pole feature (Isolator/Fuse/Transformer/Switch/Subring Circuit Breaker)";
+                                break;
+                            case ADMSUpdateMode.PoleCable:
+                                SelectUpdateModeRemark = "Plz select the Cable/OHL that needs to be updated";
                                 break;
                             default:
                                 break;
@@ -409,6 +430,49 @@ namespace CLP.ADMSUpdatePlugin
                         MessageBox.Show("Error: " + ex.Message);
                     }
                 }
+                else if (this.UpdateMode == ADMSUpdateMode.PoleCable)
+                {
+                    try
+                    {
+                        foreach (var selectionElement in this.SelectionElements)
+                        {
+                            var table = un.GetTable(selectionElement.NetworkSource);
+
+                            // Update ADMS Name & Alias for all selected Cable/OHL
+                            insp.Load(table, selectionElement.ObjectID);
+
+                            string cableADMSName = ADMSUpdateHelper.GetADMSNameForPoleCable(this.CABLE_CIRCUIT_NAME, $"{selectionElement.ObjectID}");
+                            string cableADMSAlias = ADMSUpdateHelper.GetADMSAliasForPoleCable(this.CABLE_CIRCUIT_ID, $"{selectionElement.ObjectID}");
+
+                            LoggerHelper.Info($"Updating ADMS_Name and ADMS_Alias for Spare HV Switch (ObjectID: {selectionElement.ObjectID}, AssetGroup: {selectionElement.AssetGroup.Name}, AssetType: {selectionElement.AssetType.Name})");
+                            LoggerHelper.Info($"ADMS_Name: {cableADMSName}, ADMS_Alias: {cableADMSAlias}");
+
+                            insp["ADMS_Name"] = cableADMSName;
+                            insp["ADMS_Alias"] = cableADMSAlias;
+
+                            editOp.Modify(insp);
+
+                            if (!editOp.IsEmpty)
+                            {
+                                if (editOp.Execute())
+                                {
+                                    LoggerHelper.Info("ADMS Name & Alias update completed successfully.");
+                                    MessageBox.Show("Update successfully!");
+                                }
+                                else
+                                {
+                                    LoggerHelper.Error($"Update failed: {editOp.ErrorMessage}");
+                                    MessageBox.Show("Update fail: " + editOp.ErrorMessage);
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LoggerHelper.Error($"Exception occurred during ADMS Name & Alias update: {ex.Message}");
+                        MessageBox.Show("Error: " + ex.Message);
+                    }
+                }
                 else
                 {
                     LoggerHelper.Error("FirstHVSwitch or SecondHVSwitch is null. Update aborted.");
@@ -422,6 +486,7 @@ namespace CLP.ADMSUpdatePlugin
             this.ShowUpdatePanel = false;
             this.ShowSpareCBUpdatePanel = false;
             this.ShowPolePanel = false;
+            this.ShowPoleCablePanel = false;
             this.ShowSearchPanel = true;
             this.ADMSAliasDisplay = "";
             this.ADMSNameDisplay = "";
@@ -431,8 +496,17 @@ namespace CLP.ADMSUpdatePlugin
         {
             await QueuedTask.Run(async () =>
             {
-                this.ADMSNameDisplay = this.PoleDevice.ADMS_Name;
-                this.ADMSAliasDisplay = this.PoleDevice.ADMS_Alias;
+                if (this.UpdateMode == ADMSUpdateMode.Pole)
+                {
+                    this.ADMSNameDisplay = this.PoleDevice.ADMS_Name;
+                    this.ADMSAliasDisplay = this.PoleDevice.ADMS_Alias;
+                }
+                else if(this.UpdateMode == ADMSUpdateMode.PoleCable)
+                {
+                    this.ADMSNameDisplay = ADMSUpdateHelper.GetADMSNameForPoleCable(this.CABLE_CIRCUIT_NAME, "XXXXXX");
+                    this.ADMSAliasDisplay = ADMSUpdateHelper.GetADMSAliasForPoleCable(this.CABLE_CIRCUIT_ID, "XXXXXX");
+                }
+                
             });
             
         }
@@ -453,6 +527,7 @@ namespace CLP.ADMSUpdatePlugin
         private bool _ShowUpdatePanel = false;
         private bool _ShowSpareCBUpdatePanel = false;
         private bool _ShowPolePanel = false;
+        private bool _ShowPoleCablePanel = false;
 
         public bool ShowSearchPanel
         {
@@ -478,7 +553,11 @@ namespace CLP.ADMSUpdatePlugin
             set => SetProperty(ref _ShowPolePanel, value);
         }
 
-
+        public bool ShowPoleCablePanel
+        {
+            get => _ShowPoleCablePanel;
+            set => SetProperty(ref _ShowPoleCablePanel, value);
+        }
         /// <summary>
         /// Text shown near the top of the DockPane.
         /// </summary>
@@ -533,7 +612,6 @@ namespace CLP.ADMSUpdatePlugin
                                         }
                                     }
                                 }
-
                             }
                             else if (this.UpdateMode == ADMSUpdateMode.Pole)
                             {
@@ -546,6 +624,20 @@ namespace CLP.ADMSUpdatePlugin
                                         || element.AssetGroup.Name == "Transformer" && element.AssetType.Name == "HV PM TX"
                                         || element.AssetGroup.Name == "HV Fuse" && element.AssetType.Name == "Fuse"
                                         || element.AssetGroup.Name == "HV Switch" && element.AssetType.Name == "Subring Circuit Breaker")
+                                        {
+                                            selectionElements.Add(element);
+                                        }
+                                    }
+                                }
+                            }
+                            else if (this.UpdateMode == ADMSUpdateMode.PoleCable)
+                            {
+                                using (var cursor = fLayer.Search(new QueryFilter() { ObjectIDs = mapMemberSelection.Value }))
+                                {
+                                    while (cursor.MoveNext())
+                                    {
+                                        var element = un.CreateElement(cursor.Current);
+                                        if (element.AssetGroup.Name == "HV Line" && (element.AssetType.Name == "Cable" || element.AssetType.Name == "Overhead Line"))
                                         {
                                             selectionElements.Add(element);
                                         }
@@ -720,7 +812,7 @@ namespace CLP.ADMSUpdatePlugin
         public async Task NextStepAsync()
         {
             await QueuedTask.Run(async () => {
-                if (SelectionElement == null) return;
+                if (SelectionElement == null || (this.UpdateMode != ADMSUpdateMode.PoleCable && this.SelectionElements.Count == 0)) return;
                 var utilityNetwork = MapView.Active?.Map
                     .GetLayersAsFlattenedList()
                     .OfType<UtilityNetworkLayer>().FirstOrDefault()?.GetUtilityNetwork();
@@ -1034,6 +1126,7 @@ namespace CLP.ADMSUpdatePlugin
                                         // Now you can run selections, queries, etc.
                                         FeatureSnapshot firstSwitchFeature = null;
                                         FeatureSnapshot firstSubstationFeature = null;
+                                        LoggerHelper.Info($"Starting to query target element (switch) info at {DateTime.Now}");
                                         var qf = new QueryFilter { WhereClause = "GLOBALID = '{" + hvSwitchAssociation.ToElement.GlobalID + "}'" };
                                         using (var switchCursor = deviceLayer.GetFeatureClass().Search(qf))
                                         {
@@ -1046,7 +1139,8 @@ namespace CLP.ADMSUpdatePlugin
                                                 firstSwitchFeature = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.ToElement.GlobalID);
                                             }
                                         }
-
+                                        LoggerHelper.Info($"Ending to query target element (switch) info at {DateTime.Now}");
+                                        LoggerHelper.Info($"Starting to query target element (substation) info at {DateTime.Now}");
                                         qf.WhereClause = "GLOBALID = '{" + hvSwitchAssociation.FromElement.GlobalID + "}'";
                                         using (var substationCusor = substationLayer.GetFeatureClass().Search(qf))
                                         {
@@ -1060,7 +1154,7 @@ namespace CLP.ADMSUpdatePlugin
                                                 firstSubstationFeature = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.FromElement.GlobalID);
                                             }
                                         }
-
+                                        LoggerHelper.Info($"Ending to query target element (substation) info at {DateTime.Now}");
                                         first = new SS_TO_SS_Model(firstSwitchFeature, utilityNetwork);
                                         first.SSCODE = firstSubstationFeature.Attributes["SSNUM"]?.ToString();
                                         first.SSNAME = firstSubstationFeature.Attributes["SSNAME"]?.ToString();
@@ -1069,6 +1163,7 @@ namespace CLP.ADMSUpdatePlugin
                                         this.SpareHVSwitch = first;
                                         this.ShowSearchPanel = false;
                                         this.ShowSpareCBUpdatePanel = true;
+                                        break;
                                     }
                                 }
                                 LoggerHelper.Info($"Ending to get Spare HV Switch Association at {DateTime.Now}");
@@ -1085,6 +1180,7 @@ namespace CLP.ADMSUpdatePlugin
                                 LoggerHelper.Info($"Starting to get Pole/Substation feature Association at {DateTime.Now}");
                                 var elementAssociations = utilityNetwork.GetAssociations(startElement);
                                 Pole_Model first = null;
+                                bool isSingleDevice = false;
                                 foreach (var elementAssociation in elementAssociations)
                                 {
                                     if(elementAssociation.FromElement.AssetGroup.Name == "Support Structure")
@@ -1136,20 +1232,24 @@ namespace CLP.ADMSUpdatePlugin
                                         if(firstSwitchFeature.AssetGroupName != "Transformer")
                                         {
                                             var poleAssociations = utilityNetwork.GetAssociations(firstPoleFeature.Element);
+                                            if (poleAssociations.Where(i => i.ToElement.AssetGroup.Name == "Transformer" ||
+                                                                    i.ToElement.AssetGroup.Name == "HV Switch" ||
+                                                                    i.ToElement.AssetGroup.Name == "HV Fuse").ToList().Count == 1)
+                                                isSingleDevice = true;
                                             foreach (var poleAssociation in poleAssociations)
                                             {
                                                 if (poleAssociation.ToElement.AssetGroup.Name == "Transformer" ||
                                                     (poleAssociation.ToElement.AssetGroup.Name == "HV Switch" ||
                                                     poleAssociation.ToElement.AssetType.Name == "Switch"))
                                                 {
-                                                    var transformerLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == elementAssociation.ToElement.AssetGroup.Name);
-                                                    if (transformerLayer == null)
+                                                    var layer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == elementAssociation.ToElement.AssetGroup.Name);
+                                                    if (layer == null)
                                                     {
                                                         MessageBox.Show($"Fail to found layer {poleAssociation.ToElement.AssetGroup.Name}.");
                                                         return;
                                                     }
                                                     var qf_tx = new QueryFilter { WhereClause = "GLOBALID = '{" + poleAssociation.ToElement.GlobalID + "}'" };
-                                                    using (var switchCursor = transformerLayer.GetFeatureClass().Search(qf_tx))
+                                                    using (var switchCursor = layer.GetFeatureClass().Search(qf_tx))
                                                     {
                                                         if (switchCursor.MoveNext())
                                                         {
@@ -1168,10 +1268,12 @@ namespace CLP.ADMSUpdatePlugin
                                         first.FROM_POLE_NUM = firstPoleFeature.Attributes["polenum"]?.ToString();
                                         first.Source = firstSwitchFeature;
                                         first.Pole = firstPoleFeature;
-                                        if(txAttributes != null)
+                                        first.IsSingleDevice = isSingleDevice;
+                                        if (txAttributes != null)
                                         {
                                             first.SS_NUM = txAttributes["SSNUM"] != null ? $"{txAttributes["SSNUM"]}" : "";
                                             first.SS_NAME = txAttributes["SSNAME"] != null ? $"{txAttributes["SSNAME"]}" : "";
+                                            first.IsTxInPole = true;
                                         }
                                         this.PoleDevice = first;
                                         this.ShowSearchPanel = false;
@@ -1238,6 +1340,11 @@ namespace CLP.ADMSUpdatePlugin
                                     }
                                 }
                                 LoggerHelper.Info($"Ending to get Pole/Substation feature Association at {DateTime.Now}");
+                            }
+                            else if (this.UpdateMode == ADMSUpdateMode.PoleCable)
+                            {
+                                this.ShowSearchPanel = false;
+                                this.ShowPoleCablePanel = true;
                             }
                         }
                         catch (Exception e)
@@ -1392,7 +1499,8 @@ namespace CLP.ADMSUpdatePlugin
         private Dictionary<ADMSUpdateMode, string> _updateModels = new Dictionary<ADMSUpdateMode, string>() {
             { ADMSUpdateMode.SS_TO_SS, "Update SS To SS" },
             { ADMSUpdateMode.SpareCB, "Update Spare CB" },
-            { ADMSUpdateMode.Pole, "Manual Update (Pole) (Not finish)" },
+            { ADMSUpdateMode.Pole, "Manual Update Pole Feature" },
+            { ADMSUpdateMode.PoleCable, "Multiple Update Pole Cable/OHL" },
         };
 
 
@@ -1418,6 +1526,7 @@ namespace CLP.ADMSUpdatePlugin
         SS_TO_SS,
         SpareCB,
         Pole,
+        PoleCable,
     }
 
 

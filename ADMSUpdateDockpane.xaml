@@ -276,6 +276,54 @@
                 <Button Content="Update"  Command="{Binding UpdateCommand}" Margin="5,0,0,0"></Button>
             </StackPanel>
         </Grid>
+
+        <Grid Margin="8" Visibility="{Binding ShowPoleCablePanel,Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="1*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <StackPanel Orientation="Vertical" Grid.Row="0">
+                <TextBlock Text="Select update model:"  />
+                <ComboBox Margin="0,5,0,0" IsEnabled="False" ItemsSource="{Binding UpdateModels}" SelectedValue="{Binding UpdateMode,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" DisplayMemberPath="Value" SelectedValuePath="Key" />
+            </StackPanel>
+
+            <ScrollViewer Grid.Row="1">
+                <Grid Grid.Row="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Vertical">
+                        <StackPanel Grid.Row="1" Margin="5" Orientation="Vertical">
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="Circuit Name:" />
+                                <TextBox Text="{Binding CABLE_CIRCUIT_NAME,Mode=Default}" IsReadOnly="False"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="Circuit ID:" />
+                                <TextBox Text="{Binding CABLE_CIRCUIT_ID,Mode=Default}" IsReadOnly="False"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="ADMS Name:" />
+                                <Button Margin="10,0,0,2" Content="Preview"  Command="{Binding RefreshCommand}" ></Button>
+                            </StackPanel>
+                            <TextBox Text="{Binding ADMSNameDisplay,Mode=Default}" IsReadOnly="True"/>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="ADMS Alias:" />
+                                <TextBox Text="{Binding ADMSAliasDisplay,Mode=Default}" IsReadOnly="True"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </ScrollViewer>
+
+            <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right" Margin="15">
+                <Button Content="Back"  Command="{Binding BackCommand}" ></Button>
+                <Button Content="Update"  Command="{Binding UpdateCommand}" Margin="5,0,0,0"></Button>
+            </StackPanel>
+        </Grid>
     </Grid>
 
 </UserControl>
