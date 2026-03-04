@@ -1,7 +1,6 @@
 ﻿using ArcGIS.Core.Data;
 using ArcGIS.Core.Data.UtilityNetwork;
 using ArcGIS.Desktop.Framework.Threading.Tasks;
-using ArcGIS.Desktop.Internal.Editing.COGO;
 using System;
 using System.Collections.Generic;
 using System.Linq;
