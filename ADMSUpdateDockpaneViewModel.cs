@@ -430,7 +430,7 @@ namespace CLP.ADMSUpdatePlugin
                         MessageBox.Show("Error: " + ex.Message);
                     }
                 }
-                else if (this.UpdateMode == ADMSUpdateMode.PoleCable)
+                else if (this.UpdateMode == ADMSUpdateMode.PoleCable) // no any big object needed
                 {
                     try
                     {
@@ -1097,9 +1097,11 @@ namespace CLP.ADMSUpdatePlugin
                             }
                             else if (this.UpdateMode == ADMSUpdateMode.SpareCB)
                             {
+                                LoggerHelper.Info($"Starting to process Spare HV Switch at {DateTime.Now}");
                                 var startElement = this.SelectionElement;
                                 LoggerHelper.Info($"Starting to get Spare HV Switch Association at {DateTime.Now}");
                                 var hvSwitchAssociations = utilityNetwork.GetAssociations(startElement);
+                                LoggerHelper.Info($"Ending to get Spare HV Switch Association at {DateTime.Now}");
                                 SS_TO_SS_Model first = null;
                                 if (hvSwitchAssociations.Count() == 0)
                                 {
@@ -1108,7 +1110,8 @@ namespace CLP.ADMSUpdatePlugin
                                 }
                                 foreach (var hvSwitchAssociation in hvSwitchAssociations)
                                 {
-                                    if (hvSwitchAssociation.FromElement.AssetGroup.Name == "Substation" && hvSwitchAssociation.ToElement.AssetGroup.Name == "HV Switch")
+                                    if (hvSwitchAssociation.FromElement.AssetGroup.Name == "Substation" && 
+                                        hvSwitchAssociation.ToElement.AssetGroup.Name == "HV Switch")
                                     {
                                         var deviceLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == "HV Switch");
                                         var substationLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == "Substation");
@@ -1122,7 +1125,6 @@ namespace CLP.ADMSUpdatePlugin
                                             MessageBox.Show("Fail to found layer Substation.");
                                             return;
                                         }
-                                        deviceLayer.GetFeatureClass().Search();
                                         // Now you can run selections, queries, etc.
                                         FeatureSnapshot firstSwitchFeature = null;
                                         FeatureSnapshot firstSubstationFeature = null;
@@ -1166,7 +1168,7 @@ namespace CLP.ADMSUpdatePlugin
                                         break;
                                     }
                                 }
-                                LoggerHelper.Info($"Ending to get Spare HV Switch Association at {DateTime.Now}");
+                                LoggerHelper.Info($"Ending to process Spare HV Switch at {DateTime.Now}");
                                 if (first == null)
                                 {
                                     MessageBox.Show("No accociation between CB and Substation.");
