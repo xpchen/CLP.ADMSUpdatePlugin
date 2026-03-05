@@ -667,8 +667,8 @@ namespace CLP.ADMSUpdatePlugin
         {
             if (startElements.Count() == 2)
             {
-                startElements.First().Terminal = startElements.First().AssetType.GetTerminalConfiguration().Terminals.FirstOrDefault(p => p.Name == "CB:Bus Side" || p.Name== "Source");
-                startElements.Last().Terminal = startElements.Last().AssetType.GetTerminalConfiguration().Terminals.FirstOrDefault(p => p.Name == "CB:Line Side" || p.Name == "Load");
+                startElements.First().Terminal = startElements.First().AssetType.GetTerminalConfiguration().Terminals.FirstOrDefault(p => p.Name == "CB:Bus Side" || p.Name== "Source" || p.Name == "SS:S1");
+                startElements.Last().Terminal = startElements.Last().AssetType.GetTerminalConfiguration().Terminals.FirstOrDefault(p => p.Name == "CB:Line Side" || p.Name == "Load" || p.Name == "SS:S2");
             }
             Tier sourceTier = domainNetwork.GetTier("HV");
             TraceConfiguration cfg = sourceTier.GetTraceConfiguration();
@@ -835,12 +835,11 @@ namespace CLP.ADMSUpdatePlugin
                                     .FirstOrDefault(c => c.Equals("E:Switch", StringComparison.OrdinalIgnoreCase));
                                 cfg.Filter.Scope = TraversabilityScope.JunctionsAndEdges;
                                 if (catSub != null)
-                                    if (catSub != null)
-                                    {
-                                        var catExpr = new CategoryComparison(CategoryOperator.IsEqual, catSub);
-                                        var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                        cfg.Traversability.Barriers = existing == null ? (Condition)catExpr : new Or(existing, catExpr);
-                                    }
+                                {
+                                    var catExpr = new CategoryComparison(CategoryOperator.IsEqual, catSub);
+                                    var existing = cfg.Traversability.Barriers as ConditionalExpression;
+                                    cfg.Traversability.Barriers = existing == null ? (Condition)catExpr : new Or(existing, catExpr);
+                                }
 
                                 // condition_barriers="Category IS_EQUAL_TO SPECIFIC_VALUE E:Switch OR;'Asset group' IS_EQUAL_TO SPECIFIC_VALUE 51 OR;'Life Cycle Status' IS_EQUAL_TO SPECIFIC_VALUE 3 OR;'Life Cycle Status' IS_EQUAL_TO SPECIFIC_VALUE 4 OR;'Life Cycle Status' IS_EQUAL_TO SPECIFIC_VALUE 0 #",
                                 cfg.Traversability.Barriers = TraceCfgHelpers.RemoveAttrFromBarriers(cfg.Traversability.Barriers, new string[] { "NormalOperatingStatus", "Life Cycle Status" });
@@ -909,6 +908,7 @@ namespace CLP.ADMSUpdatePlugin
                                     {
                                         resultType = SS_TO_SS_ResultType.CB_TO_TRANSFORMER;
                                     }
+                                    
                                     var hvSwitchAssociations = utilityNetwork.TraverseAssociations(hvSwitchs.Select(p => p.Element), new TraverseAssociationsDescription(TraversalDirection.Ascending));
                                     SS_TO_SS_Model first = null;
                                     SS_TO_SS_Model second = null;
@@ -970,6 +970,41 @@ namespace CLP.ADMSUpdatePlugin
                                                 }
                                             }
                                             //var supportStructureAssociations = utilityNetwork.TraverseAssociations(new Element[] { hvSwitchAssociation.FromElement }, new TraverseAssociationsDescription(TraversalDirection.Ascending));
+                                        }
+                                        if (hvSwitchAssociation.FromElement.AssetGroup.Name == "HV Switching Assembly"
+                                        && hvSwitchAssociation.ToElement.AssetGroup.Name == "HV Switch")
+                                        {
+                                            var assemblyAssociations = utilityNetwork.GetAssociations(hvSwitchAssociation.FromElement, AssociationType.Containment);
+                                            string msg = $"HV Switching Assembly Assictions:[{String.Join(",", assemblyAssociations.Select(p => p.FromElement.AssetGroup.Name))}]";
+                                            LoggerHelper.Info(msg);
+                                            foreach( var assemblyAssociation in assemblyAssociations)
+                                            {
+                                                if(assemblyAssociation.FromElement.AssetGroup.Name == "Substation")
+                                                {
+                                                    var firstSwitchFeature = features.FirstOrDefault(p =>
+                                                            p.Element.GlobalID == hvSwitchAssociation.ToElement.GlobalID);
+                                                    var firstSubstation = features.FirstOrDefault(p =>
+                                                            p.Element.GlobalID == assemblyAssociation.FromElement.GlobalID);
+                                                    var firstSource = features.FirstOrDefault(p => 
+                                                            p.Element.GlobalID == hvSwitchAssociation.FromElement.GlobalID);
+                                                    if (first == null)
+                                                    {
+                                                        first = new SS_TO_SS_Model(firstSwitchFeature, utilityNetwork);
+                                                        first.SSCODE = firstSubstation.Attributes["SSNUM"]?.ToString();
+                                                        first.SSNAME = firstSubstation.Attributes["SSNAME"]?.ToString();
+                                                        first.Source = firstSwitchFeature;
+                                                        first.Substation = firstSource;
+                                                    } else
+                                                    {
+                                                        second = new SS_TO_SS_Model(firstSwitchFeature, utilityNetwork);
+                                                        second.SSCODE = firstSubstation.Attributes["SSNUM"]?.ToString();
+                                                        second.SSNAME = firstSubstation.Attributes["SSNAME"]?.ToString();
+                                                        second.Source = firstSwitchFeature;
+                                                        second.Substation = firstSource;
+                                                    }
+                                                    break;
+                                                }
+                                            }
                                         }
                                     }
                                     LoggerHelper.Info($"Get Association Info end at: {DateTime.Now}");

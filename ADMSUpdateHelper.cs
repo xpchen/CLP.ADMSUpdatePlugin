@@ -268,9 +268,7 @@ namespace CLP.ADMSUpdatePlugin
                                             : "";
             string part3 = $"{assetTypeAbbreviation} ".PadRight(13);
             if (first.Source.AssetTypeName == "Source Circuit Breaker")
-            {
                 part3 = $"CBD{first.PANEL_NO ?? ""}5";
-            }
             return $"{substationSource}{part2}{part3}";
         }
 
@@ -283,13 +281,15 @@ namespace CLP.ADMSUpdatePlugin
                                             ? AssetTypeAbbreviations[first.Source.AssetTypeName]
                                             : "";
             string part3 = $"{assetTypeAbbreviation} ".PadRight(13);
+            if (first.Source.AssetTypeName == "Source Circuit Breaker")
+                part3 = $"CBD{first.PANEL_NO ?? ""}5";
             return $"{substationSource}{part2}{part3}";
         }
 
         private static readonly Dictionary<string, string> AssetTypeAbbreviations = new Dictionary<string, string>
         {
             { "Circuit Breaker", "CB" },
-            { "Source Circuit Breaker", "SCB" },
+            { "Source Circuit Breaker", "CB" },
             { "Switch", "LBS" },
         };
 
@@ -302,14 +302,16 @@ namespace CLP.ADMSUpdatePlugin
             string assetTypeAbbreviation = AssetTypeAbbreviations.ContainsKey(first.Source.AssetTypeName)
                                             ? AssetTypeAbbreviations[first.Source.AssetTypeName]
                                             : "";
-            string panelUnit = first.SSNAME.Contains("CUST EQPT") ? "BAY" : "PNL";
+            string panelUnit = "PNL";
+            if (first.SSNAME.Contains("CUST EQPT"))
+                panelUnit = "BAY";
             string part2 = $"{panelUnit} {bbSourcePart}{panelPart}".PadRight(15);
-            string part3 = $"{assetTypeAbbreviation} ".PadRight(8);
-            if (first.Source.AssetTypeName == "Source Circuit Breaker")
+            if (first.Substation.AssetGroupName == "HV Switching Assembly")
             {
-                part3 = $"CB".PadRight(8);
+                panelUnit = "W";
+                part2 = $"{panelUnit}{panelPart}".PadRight(15);
             }
-
+            string part3 = $"{assetTypeAbbreviation} ".PadRight(8);
             return $"{substationSource}{part2}{part3}";
         }
         //两个以上的空格remove掉
@@ -323,22 +325,18 @@ namespace CLP.ADMSUpdatePlugin
             if (first.SSNAME != second.SSNAME) // If not in the same substation
             {
                 txPart = $"{ReplaceMultipleSpaces(second.SSNAME.Replace("S/S", ""))} Tx ";
-                if (!string.IsNullOrEmpty(second.TX_NO))
-                {
-                    txPart += $"D{second.TX_NO}";
-                }
+                if (!string.IsNullOrEmpty(second.TX_NO)) txPart += $"D{second.TX_NO}";
             }
             else
             {
                 txPart = "L/Tx ";
-                if (!string.IsNullOrEmpty(second.TX_NO))
-                {
-                    txPart += $"D{second.TX_NO}";
-                }
+                if (!string.IsNullOrEmpty(second.TX_NO)) txPart += $"D{second.TX_NO}";
             }
             string part2 = ReplaceMultipleSpaces($"{bbSourcePart}{txPart}").PadRight(41);
-            string assetTypeAbbreviation ="CB";
-            //SCB CB
+            string assetTypeAbbreviation = AssetTypeAbbreviations.ContainsKey(first.Source.AssetTypeName)
+                                            ? AssetTypeAbbreviations[first.Source.AssetTypeName]
+                                            : "";
+            //CB LBS
             string part3 = $"{assetTypeAbbreviation}".PadRight(13);
 
             return $"{substationSource}{part2}{part3}";
