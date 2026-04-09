@@ -202,7 +202,7 @@ namespace CLP.ADMSUpdatePlugin
             return ReplaceMultipleSpaces(part2);
         }
 
-        public static string GetCB_Terminal_Substation(SS_TO_SS_Model first, SS_TO_SS_Model second)
+        public static string GetCable_Terminal_Substation(SS_TO_SS_Model first, SS_TO_SS_Model second)
         {
             return ReplaceMultipleSpaces($"{GetCB_SOM_SS(first)} - {GetCB_SOM_CCT(first, second)}");
         }

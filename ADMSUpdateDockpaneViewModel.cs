@@ -124,7 +124,7 @@ namespace CLP.ADMSUpdatePlugin
                 EditOperation editOp = new EditOperation();
                 Inspector insp = new Inspector();
 
-                if (this.FirstHVSwitch != null && this.SecondHVSwitch != null)
+                if (this.FirstHVSwitch != null && this.SecondHVSwitch != null && this.UpdateMode == ADMSUpdateMode.SS_TO_SS)
                 {
                     try
                     {
@@ -277,7 +277,7 @@ namespace CLP.ADMSUpdatePlugin
 
                                     insp["ADMS_Name"] = cableName;
                                     insp["ADMS_Alias"] = cableAlias;
-                                    insp["terminated_substation"] = ADMSUpdateHelper.GetCB_Terminal_Substation(this.FirstHVSwitch, SecondHVSwitch);
+                                    insp["terminated_substation"] = ADMSUpdateHelper.GetCable_Terminal_Substation(this.FirstHVSwitch, SecondHVSwitch);
                                     editOp.Modify(insp);
                                 }
                             }
@@ -290,7 +290,7 @@ namespace CLP.ADMSUpdatePlugin
                                     insp.Load(connectionTable, connection.ObjectID);
                                     string cableAssetGroup = connection.AssetGroupName;
                                     string cableAssetType = connection.AssetTypeName;
-                                    string terminated_substation = ADMSUpdateHelper.GetCB_Terminal_Substation(this.FirstHVSwitch, SecondHVSwitch);
+                                    string terminated_substation = ADMSUpdateHelper.GetCable_Terminal_Substation(this.FirstHVSwitch, SecondHVSwitch);
 
                                     LoggerHelper.Info($"Updating Terminated Substation for Joint/Termination (ObjectID: {connection.ObjectID}, AssetGroup: {cableAssetGroup}, AssetType: {cableAssetType})");
                                     LoggerHelper.Info($"Terminated Substation: {terminated_substation}");
@@ -322,7 +322,7 @@ namespace CLP.ADMSUpdatePlugin
                         MessageBox.Show("Error: " + ex.Message);
                     }
                 }
-                else if (this.SpareHVSwitch != null)
+                else if (this.SpareHVSwitch != null && this.UpdateMode == ADMSUpdateMode.SpareCB)
                 {
                     try
                     {
@@ -372,7 +372,7 @@ namespace CLP.ADMSUpdatePlugin
                         MessageBox.Show("Error: " + ex.Message);
                     }
                 }
-                else if (this.PoleDevice != null)
+                else if (this.PoleDevice != null && this.UpdateMode == ADMSUpdateMode.Pole)
                 {
                     try
                     {
@@ -483,6 +483,10 @@ namespace CLP.ADMSUpdatePlugin
         }
 
         public void Back() {
+            this.FirstHVSwitch = null;
+            this.SecondHVSwitch = null;
+            this.SpareHVSwitch = null;
+            this.PoleDevice = null;
             this.ShowUpdatePanel = false;
             this.ShowSpareCBUpdatePanel = false;
             this.ShowPolePanel = false;
@@ -1067,7 +1071,7 @@ namespace CLP.ADMSUpdatePlugin
                                                 cable.Attributes["ADMS_Name"] = ADMSUpdateHelper.GetCableADMSName(first, second, cable);
                                                 cable.Attributes["ADMS_Alias"] = ADMSUpdateHelper.GetCableADMSAlias(first, second, cable);
                                             }
-                                            cable.Attributes["terminated_substation"] = ADMSUpdateHelper.GetCB_Terminal_Substation(first, second);
+                                            cable.Attributes["terminated_substation"] = ADMSUpdateHelper.GetCable_Terminal_Substation(first, second);
                                             
                                         }
                                         GetCableADMSInfo(Cables, first, second);
@@ -1114,7 +1118,7 @@ namespace CLP.ADMSUpdatePlugin
                                                 cable.Attributes["ADMS_Name"] = ADMSUpdateHelper.GetCableADMSName(first, second, cable);
                                                 cable.Attributes["ADMS_Alias"] = ADMSUpdateHelper.GetCableADMSAlias(first, second, cable);
                                             }
-                                            cable.Attributes["terminated_substation"] = ADMSUpdateHelper.GetCB_Terminal_Substation(first, second);
+                                            cable.Attributes["terminated_substation"] = ADMSUpdateHelper.GetCable_Terminal_Substation(first, second);
                                         }
                                         GetCableADMSInfo(Cables, first, second);
                                         this.ShowSearchPanel = false;
