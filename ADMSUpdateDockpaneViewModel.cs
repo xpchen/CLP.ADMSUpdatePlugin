@@ -494,6 +494,7 @@ namespace CLP.ADMSUpdatePlugin
             this.ShowSearchPanel = true;
             this.ADMSAliasDisplay = "";
             this.ADMSNameDisplay = "";
+            this.UpdteCableADMSEnabled = false;
         }
 
         public async Task RefreshADMS()
@@ -1035,6 +1036,12 @@ namespace CLP.ADMSUpdatePlugin
                                             return;
                                         }
 
+                                        if(first.SSNAME.CompareTo(second.SSNAME) > 0)
+                                        {
+                                            var tmp = first;
+                                            first = second;
+                                            second = tmp;
+                                        }
                                         first.Target = second;
                                         second.Target = first;
                                         if (first.Source.AssetTypeName != "Source Circuit Breaker" || second.Source.AssetTypeName != "Source Circuit Breaker")
