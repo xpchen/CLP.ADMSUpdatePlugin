@@ -86,6 +86,9 @@ namespace CLP.ADMSUpdatePlugin
                             case ADMSUpdateMode.PoleCable:
                                 SelectUpdateModeRemark = "Plz select the Cable/OHL that needs to be updated";
                                 break;
+                            case ADMSUpdateMode.LVFeature:
+                                SelectUpdateModeRemark = "Plz slsect a LV feature ()";
+                                break;
                             default:
                                 break;
                         }
@@ -1319,8 +1322,8 @@ namespace CLP.ADMSUpdatePlugin
                                         first.IsSingleDevice = isSingleDevice;
                                         if (txAttributes != null)
                                         {
-                                            first.SS_NUM = txAttributes["SSNUM"] != null ? $"{txAttributes["SSNUM"]}" : "";
-                                            first.SS_NAME = txAttributes["SSNAME"] != null ? $"{txAttributes["SSNAME"]}" : "";
+                                            first.FROM_SS_NUM = txAttributes["SSNUM"] != null ? $"{txAttributes["SSNUM"]}" : "";
+                                            first.FROM_SS_NAME = txAttributes["SSNAME"] != null ? $"{txAttributes["SSNAME"]}" : "";
                                             first.IsTxInPole = true;
                                         }
                                         this.PoleDevice = first;
@@ -1375,8 +1378,8 @@ namespace CLP.ADMSUpdatePlugin
                                         }
 
                                         first = new Pole_Model(firstSwitchFeature, utilityNetwork);
-                                        first.SS_NAME = firstSubstationFeature.Attributes["SSNAME"]?.ToString();
-                                        first.SS_NUM = firstSubstationFeature.Attributes["SSNUM"]?.ToString();
+                                        first.FROM_SS_NAME = firstSubstationFeature.Attributes["SSNAME"]?.ToString();
+                                        first.FROM_SS_NUM = firstSubstationFeature.Attributes["SSNUM"]?.ToString();
                                         first.FROM_POLE_NUM = firstSwitchFeature.Attributes["PANEL_NO"]?.ToString();
                                         first.Source = firstSwitchFeature;
                                         first.Pole = firstSubstationFeature;
@@ -1549,6 +1552,7 @@ namespace CLP.ADMSUpdatePlugin
             { ADMSUpdateMode.SpareCB, "Update Spare CB" },
             { ADMSUpdateMode.Pole, "Manual Update Pole Feature" },
             { ADMSUpdateMode.PoleCable, "Multiple Update Pole Cable/OHL" },
+            { ADMSUpdateMode.LVFeature, "Update LV Feature" },
         };
 
 
@@ -1575,6 +1579,7 @@ namespace CLP.ADMSUpdatePlugin
         SpareCB,
         Pole,
         PoleCable,
+        LVFeature,
     }
 
 

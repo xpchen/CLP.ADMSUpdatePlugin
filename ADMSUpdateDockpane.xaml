@@ -247,12 +247,28 @@
                                     </StackPanel>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="Substation Name:" />
-                                    <TextBox Text="{Binding SS_NAME,Mode=Default}" IsReadOnly="False"/>
+                                    <TextBlock Text="Substation Name (From):" />
+                                    <TextBox Text="{Binding FROM_SS_NAME,Mode=Default}" IsReadOnly="False"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="Substation Number:" />
-                                    <TextBox Text="{Binding SS_NUM,Mode=Default}" IsReadOnly="False"/>
+                                    <TextBlock Text="Substation Number: (From)" />
+                                    <TextBox Text="{Binding FROM_SS_NUM,Mode=Default}" IsReadOnly="False"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Substation Name (To):" />
+                                    <TextBlock Text="Please manually add BD X if the Spring-CB is in BD X" 
+                                           Foreground="#757575" 
+                                           FontSize="10" 
+                                           Margin="0,1,0,1" />
+                                    <TextBox Text="{Binding TO_SS_NAME,Mode=Default}" IsReadOnly="False"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Substation Number: (To)" />
+                                    <TextBlock Text="Please manually add BX if the Spring-CB is in BX" 
+                                           Foreground="#757575" 
+                                           FontSize="10" 
+                                           Margin="0,1,0,1" />
+                                    <TextBox Text="{Binding TO_SS_NUM,Mode=Default}" IsReadOnly="False"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>

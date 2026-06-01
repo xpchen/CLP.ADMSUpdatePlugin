@@ -43,18 +43,32 @@ namespace CLP.ADMSUpdatePlugin
             set => SetProperty(ref _to_pole_num, value);
         }
 
-        private string _ss_name;
-        public string SS_NAME
+        private string _from_ss_name;
+        public string FROM_SS_NAME
         {
-            get => _ss_name;
-            set => SetProperty(ref _ss_name, value);
+            get => _from_ss_name;
+            set => SetProperty(ref _from_ss_name, value);
         }
 
-        private string _ss_num;
-        public string SS_NUM
+        private string _from_ss_num;
+        public string FROM_SS_NUM
         {
-            get => _ss_num;
-            set => SetProperty(ref _ss_num, value);
+            get => _from_ss_num;
+            set => SetProperty(ref _from_ss_num, value);
+        }
+
+        private string _to_ss_name;
+        public string TO_SS_NAME
+        {
+            get => _to_ss_name;
+            set => SetProperty(ref _to_ss_name, value);
+        }
+
+        private string _to_ss_num;
+        public string TO_SS_NUM
+        {
+            get => _to_ss_num;
+            set => SetProperty(ref _to_ss_num, value);
         }
 
         private bool _isTxInPole;
@@ -127,11 +141,11 @@ namespace CLP.ADMSUpdatePlugin
             }
             if (source.Attributes.ContainsKey("SSNAME"))
             {
-                this.SS_NAME = source.Attributes["SSNAME"]?.ToString();
+                this.FROM_SS_NAME = source.Attributes["SSNAME"]?.ToString();
             }
             if (source.Attributes.ContainsKey("SSNUM"))
             {
-                this.SS_NUM = source.Attributes["SSNUM"]?.ToString();
+                this.FROM_SS_NUM = source.Attributes["SSNUM"]?.ToString();
             }
         }
     }
