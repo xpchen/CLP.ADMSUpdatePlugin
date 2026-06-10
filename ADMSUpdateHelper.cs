@@ -507,6 +507,195 @@ namespace CLP.ADMSUpdatePlugin
             string part3 = $"L{objectID}".PadRight(8);
             return $"{part1}{part2}{part3}";
         }
+
+        public static string GetADMSNameForSourceFuse(LVFeature_Model first)
+        {
+            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SS_NAME?.Replace("S/S", "")}").PadRight(67);
+            string part2 = ($"D{first.TX_NO} CCT {first.CCT_NO}").PadRight(45);
+            string part3 = "LVFUSE".PadRight(10);
+            return $"{part1}{part2}{part3}";
+        }
+
+        public static string GetADMSAliasForSourceFuse(LVFeature_Model first)
+        {
+            string part1 = ($"{first.SS_NUM}-{first.TX_NO}").PadRight(15);
+            string part2 = ($"CCT {first.CCT_NO}").PadRight(15);
+            string part3 = "LVFUSE".PadRight(10);
+            return $"{part1}{part2}{part3}";
+        }
+
+        public static string GetSOMSSForSourceFuse(LVFeature_Model first)
+        {
+            string transformerPart = string.IsNullOrEmpty(first.TX_NO) ? "" : $" D{first.TX_NO}";
+            return $"{first.SS_NAME}-L/Tx{transformerPart}-LVB";
+        }
+
+        public static string GetSOMCCTForSourceFuse(LVFeature_Model first)
+        {
+            return $"CCT {first.CCT_NO}";
+        }
+
+        public static string GetADMSNameForLocalSupply(LVFeature_Model first)
+        {
+            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SPSID} {first.ADDRESS}").PadRight(101);
+            string part2 = "LocSP".PadRight(13);
+            return $"{part1}{part2}";
+        }
+
+        public static string GetADMSAliasForLocalSupply(LVFeature_Model first)
+        {
+            string part1 = first.SPSID?.PadRight(15);
+            string part2 = ($"{first.SS_NUM}-{first.TX_NO}").PadRight(15);
+            string part3 = "LocSP".PadRight(10);
+            return $"{part1}{part2}{part3}";
+        }
+
+        public static string GetADMSNameForSupplyPoint(LVFeature_Model first)
+        {
+            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SPSID} {first.ADDRESS}").PadRight(99);
+            string part2 = "LVSP".PadRight(10);
+            return $"{part1}{part2}";
+        }
+
+        public static string GetADMSAliasForSupplyPoint(LVFeature_Model first)
+        {
+            string part1 = first.SPSID?.PadRight(15);
+            string part2 = ($"{first.SUBNETWORKNAME}").PadRight(15);
+            string part3 = "LVSP".PadRight(10);
+            return $"{part1}{part2}{part3}";
+        }
+
+        public static string GetADMSNameForPillar(LVFeature_Model first)
+        {
+            string part1 = ($"{first.PR_NAME?.Replace("Pillar", "")} PILLAR").PadRight(90);
+            string part2 = "LVPILLAR".PadRight(10);
+            return $"{part1}{part2}";
+        }
+
+        public static string GetADMSAliasForPillar(LVFeature_Model first)
+        {
+            string part1 = ($"{first.PR_NO?.PadLeft(5, '0')} PR").PadRight(30);
+            string part2 = "LVPILLAR".PadRight(10);
+            return $"{part1}{part2}";
+        }
+
+        public static string GetADMSNameForPillarFuse(LVFeature_Model first)
+        {
+            string part1 = ($"[{first.SUBNETWORKNAME}] {first.PR_NAME?.Replace("Pillar", "")} Pillar").PadRight(60);
+            string part2 = ($"CCT {first.CCT_NO}").PadRight(45);
+            string part3 = "LVFUSE".PadRight(10);
+            return $"{part1}{part2}{part3}";
+        }
+
+        public static string GetADMSAliasForPillarFuse(LVFeature_Model first)
+        {
+            string part1 = ($"{first.PR_NO?.PadLeft(5, '0')} PR").PadRight(15);
+            string part2 = ($"CCT {first.CCT_NO}").PadRight(15);
+            string part3 = "LVFUSE".PadRight(10);
+            return $"{part1}{part2}{part3}";
+        }
+
+        public static string GetSOMSSForPillarFuse(LVFeature_Model first)
+        {
+            return $"{first.PR_NAME} Pillar";
+        }
+
+        public static string GetSOMCCTForPillarFuse(LVFeature_Model first)
+        {
+            return $"CCT {first.CCT_NO}";
+        }
+
+        public static string GetADMSNameForPoleSourceFuse(LVFeature_Model first)
+        {
+            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SS_NAME}").PadRight(67);
+            string part2 = ($"D{first.TX_NO} CCT {first.CCT_NO}").PadRight(45);
+            string part3 = "LVFUSE".PadRight(10);
+            return $"{part1}{part2}{part3}";
+        }
+
+        public static string GetADMSAliasForPoleSourceFuse(LVFeature_Model first)
+        {
+            string part1 = ($"{first.SS_NUM}-{first.TX_NO}").PadRight(15);
+            string part2 = ($"CCT {first.CCT_NO}").PadRight(15);
+            string part3 = "LVFUSE".PadRight(10);
+            return $"{part1}{part2}{part3}";
+        }
+
+        public static string GetSOMSSForPoleSourceFuse(LVFeature_Model first)
+        {
+            return $"{first.SS_NAME} P/M Tx";
+        }
+
+        public static string GetSOMCCTForPoleSourceFuse(LVFeature_Model first)
+        {
+            return $"CCT {first.CCT_NO}";
+        }
+
+        public static string GetADMSNameForMotherSupplyPoint(LVFeature_Model first)
+        {
+            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SS_NAME}").PadRight(57);
+            string part2 = ($"D{first.TX_NO} CCT {first.CCT_NO} P.{first.POLENUM}").PadRight(45);
+            string part3 = "LVFUSE".PadRight(10);
+            return $"{part1}{part2}{part3}";
+        }
+
+        public static string GetADMSAliasForMotherSupplyPoint(LVFeature_Model first)
+        {
+            string part1 = ($"{first.SS_NUM}-{first.TX_NO}{first.CCT_NO}-{first.POLENUM}").PadRight(15);
+            string part2 = ($"P.{first.POLENUM}").PadRight(15);
+            string part3 = "LVFUSE".PadRight(10);
+            return $"{part1}{part2}{part3}";
+        }
+
+        public static string GetSOMSSForMotherSupplyPoint(LVFeature_Model first)
+        {
+            return first.ADDRESS;
+        }
+
+        public static string GetSOMCCTForMotherSupplyPoint(LVFeature_Model first)
+        {
+            return $"({first.SPSID})";
+        }
+
+        public static string GetADMSNameForLinkBox(LVFeature_Model first)
+        {
+            string part1 = ($"{first.SPSID} {first.ADDRESS}").PadRight(90);
+            string part2 = "LVSP".PadRight(10);
+            return $"{part1}{part2}";
+        }
+
+        public static string GetADMSAliasForLinkBox(LVFeature_Model first)
+        {
+            string part1 = first.SPSID?.PadRight(15);
+            string part2 = first.SUBNETWORKNAME?.PadRight(15);
+            string part3 = "LVSP".PadRight(10);
+            return $"{part1}{part2}{part3}";
+        }
+
+        public static string GetADMSNameForLinkBoxLeg(LVFeature_Model first)
+        {
+            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SPSID} {first.ADDRESS}").PadRight(96);
+            string part2 = ($"LEG {first.LEG} LVLB LEG").PadRight(16);
+            return $"{part1}{part2}";
+        }
+
+        public static string GetADMSAliasForLinkBoxLeg(LVFeature_Model first)
+        {
+            string part1 = first.SPSID?.PadRight(15);
+            string part2 = ($"LEG {first.LEG}").PadRight(15);
+            string part3 = "LVLB".PadRight(10);
+            return $"{part1}{part2}{part3}";
+        }
+
+        public static string GetSOMSSForLinkBoxLeg(LVFeature_Model first)
+        {
+            return first.ADDRESS;
+        }
+
+        public static string GetSOMCCTForLinkBoxLeg(LVFeature_Model first)
+        {
+            return $"LEG {first.LEG}({first.SPSID})";
+        }
     }
 
 }

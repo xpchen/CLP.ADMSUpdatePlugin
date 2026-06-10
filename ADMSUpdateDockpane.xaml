@@ -340,6 +340,401 @@
                 <Button Content="Update"  Command="{Binding UpdateCommand}" Margin="5,0,0,0"></Button>
             </StackPanel>
         </Grid>
+
+        <Grid Margin="8" Visibility="{Binding ShowLVFeaturePanel,Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="1*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <StackPanel Orientation="Vertical" Grid.Row="0">
+                <TextBlock Text="Select update model:"  />
+                <ComboBox Margin="0,5,0,0" IsEnabled="False" ItemsSource="{Binding UpdateModels}" SelectedValue="{Binding UpdateMode,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" DisplayMemberPath="Value" SelectedValuePath="Key" />
+            </StackPanel>
+
+            <ScrollViewer Grid.Row="1">
+                <Grid Grid.Row="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Vertical">
+                        <StackPanel Orientation="Vertical" DataContext="{Binding LVFeatureContainer}" Visibility="{Binding DataContext.ShowLVSourceFusePanel, RelativeSource={RelativeSource AncestorType=UserControl},Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Border CornerRadius="5" Padding="5" Margin="5" BorderBrush="#f1f1f1" BorderThickness="1">
+                            <StackPanel Orientation="Vertical">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Asset Type:" />
+                                    <TextBlock Margin="5,0,0,0" Text="{Binding SourceFuseDisplay.ASSET_TYPE,Mode=OneTime}" />
+                                    <TextBlock Margin="10,0,0,0" Text="Total:" />
+                                    <TextBlock Margin="5,0,0,0" Text="{Binding SourceFuseCount,Mode=OneTime}" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
+                                    <CheckBox IsChecked="{Binding UpdateAllSourceFuse,Mode=TwoWay}" Content="Update all Source Fuse" />
+                                    <CheckBox IsChecked="{Binding UpdateSelectedSourceFuse,Mode=TwoWay}" Content="Only update selected Source Fuse" Margin="10,0,0,0" />
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical" DataContext="{Binding SourceFuseDisplay}">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="Global ID:" />
+                                        <TextBox Text="{Binding GLOBALID,Mode=OneTime}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="Subnetwork Name:" />
+                                        <TextBox Text="{Binding SUBNETWORKNAME,Mode=OneTime}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="Substation Name:" />
+                                        <TextBox Text="{Binding SS_NAME,Mode=OneTime}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="Substation Number:" />
+                                        <TextBox Text="{Binding SS_NUM,Mode=OneTime}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="Transformer No:" />
+                                        <TextBox Text="{Binding TX_NO,Mode=OneTime}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="Circuit No:" />
+                                        <TextBox Text="{Binding CCT_NO,Mode=OneTime}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="ADMS Name:" />
+                                        <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="ADMS Alias:" />
+                                        <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="SOM SS:" />
+                                        <TextBox Text="{Binding SOMSS,Mode=OneTime}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="SOM CCT:" />
+                                        <TextBox Text="{Binding SOMCCT,Mode=OneTime}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+                            </Border>
+                            <Border CornerRadius="5" Padding="5" Margin="5" BorderBrush="#f1f1f1" BorderThickness="1" Visibility="{Binding HasLocalSupplyPoint,Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <StackPanel Orientation="Vertical">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Asset Type:" />
+                                    <TextBlock Margin="5,0,0,0" Text="Local Supply" />
+                                    <TextBlock Margin="10,0,0,0" Text="Total:" />
+                                    <TextBlock Margin="5,0,0,0" Text="{Binding LocalSupplyPointCount,Mode=OneTime}" />
+                                    <CheckBox IsChecked="{Binding UpdateLocalSupplyPoint,Mode=TwoWay}" Content="Update Local Supply Point" Margin="10,0,0,0" />
+                                </StackPanel>
+                                <ItemsControl ItemsSource="{Binding LocalSupplyPoints}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Vertical" Margin="0,5,0,0">
+                                                <StackPanel Orientation="Vertical">
+                                                    <TextBlock Text="Global ID:" />
+                                                    <TextBox Text="{Binding GLOBALID,Mode=OneTime}" IsReadOnly="True"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Vertical">
+                                                    <TextBlock Text="SPSID:" />
+                                                    <TextBox Text="{Binding SPSID,Mode=OneTime}" IsReadOnly="True"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Vertical">
+                                                    <TextBlock Text="Address:" />
+                                                    <TextBox Text="{Binding ADDRESS,Mode=OneTime}" IsReadOnly="True"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Vertical">
+                                                    <TextBlock Text="ADMS Name:" />
+                                                    <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Vertical">
+                                                    <TextBlock Text="ADMS Alias:" />
+                                                    <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Orientation="Vertical" DataContext="{Binding LVFeatureContainer}" Visibility="{Binding DataContext.ShowLVPillarFusePanel, RelativeSource={RelativeSource AncestorType=UserControl},Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Border CornerRadius="5" Padding="5" Margin="5" BorderBrush="#f1f1f1" BorderThickness="1">
+                                <StackPanel Orientation="Vertical">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Asset Type:" />
+                                        <TextBlock Margin="5,0,0,0" Text="{Binding PillarFuseDisplay.ASSET_TYPE,Mode=OneTime}" />
+                                        <TextBlock Margin="10,0,0,0" Text="Total:" />
+                                        <TextBlock Margin="5,0,0,0" Text="{Binding PillarFuseCount,Mode=OneTime}" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
+                                        <CheckBox IsChecked="{Binding UpdateAllPillarFuse,Mode=TwoWay}" Content="Update all Fuse" />
+                                        <CheckBox IsChecked="{Binding UpdateSelectedPillarFuse,Mode=TwoWay}" Content="Only update selected Fuse" Margin="10,0,0,0" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical" DataContext="{Binding PillarFuseDisplay}">
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="Global ID:" />
+                                            <TextBox Text="{Binding GLOBALID,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="Subnetwork Name:" />
+                                            <TextBox Text="{Binding SUBNETWORKNAME,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="Pillar No:" />
+                                            <TextBox Text="{Binding PR_NO,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="Pillar Name:" />
+                                            <TextBox Text="{Binding PR_NAME,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="Circuit No:" />
+                                            <TextBox Text="{Binding CCT_NO,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="ADMS Name:" />
+                                            <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="ADMS Alias:" />
+                                            <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="SOM SS:" />
+                                            <TextBox Text="{Binding SOMSS,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="SOM CCT:" />
+                                            <TextBox Text="{Binding SOMCCT,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                            <Border CornerRadius="5" Padding="5" Margin="5" BorderBrush="#f1f1f1" BorderThickness="1" Visibility="{Binding HasPillarCircuitBox,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel Orientation="Vertical">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Asset Type:" />
+                                        <TextBlock Margin="5,0,0,0" Text="{Binding PillarCircuitBox.ASSET_TYPE,Mode=OneTime}" />
+                                        <CheckBox IsChecked="{Binding UpdatePillarCircuitBox,Mode=TwoWay}" Content="Update Pillar Circuit Box" Margin="10,0,0,0" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical" DataContext="{Binding PillarCircuitBox}">
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="Global ID:" />
+                                            <TextBox Text="{Binding GLOBALID,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="ADMS Name:" />
+                                            <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="ADMS Alias:" />
+                                            <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Orientation="Vertical" DataContext="{Binding LVFeatureContainer}" Visibility="{Binding DataContext.ShowLVLinkBoxPanel, RelativeSource={RelativeSource AncestorType=UserControl},Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Border CornerRadius="5" Padding="5" Margin="5" BorderBrush="#f1f1f1" BorderThickness="1">
+                                <StackPanel Orientation="Vertical">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Asset Type:" />
+                                        <TextBlock Margin="5,0,0,0" Text="{Binding LVSwitchDisplay.ASSET_TYPE,Mode=OneTime}" />
+                                        <TextBlock Margin="10,0,0,0" Text="Total:" />
+                                        <TextBlock Margin="5,0,0,0" Text="{Binding LVSwitchCount,Mode=OneTime}" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
+                                        <CheckBox IsChecked="{Binding UpdateAllLVSwitch,Mode=TwoWay}" Content="Update all Switch" />
+                                        <CheckBox IsChecked="{Binding UpdateSelectedLVSwitch,Mode=TwoWay}" Content="Only update selected Switch" Margin="10,0,0,0" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical" DataContext="{Binding LVSwitchDisplay}">
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="Global ID:" />
+                                            <TextBox Text="{Binding GLOBALID,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="Subnetwork Name:" />
+                                            <TextBox Text="{Binding SUBNETWORKNAME,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="SPSID:" />
+                                            <TextBox Text="{Binding SPSID,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="Address:" />
+                                            <TextBox Text="{Binding ADDRESS,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="Leg:" />
+                                            <TextBox Text="{Binding LEG,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="ADMS Name:" />
+                                            <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="ADMS Alias:" />
+                                            <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="SOM SS:" />
+                                            <TextBox Text="{Binding SOMSS,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="SOM CCT:" />
+                                            <TextBox Text="{Binding SOMCCT,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                            <Border CornerRadius="5" Padding="5" Margin="5" BorderBrush="#f1f1f1" BorderThickness="1" Visibility="{Binding HasLinkBox,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel Orientation="Vertical">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Asset Type:" />
+                                        <TextBlock Margin="5,0,0,0" Text="{Binding LinkBox.ASSET_TYPE,Mode=OneTime}" />
+                                        <CheckBox IsChecked="{Binding UpdateLinkBox,Mode=TwoWay}" Content="Update Link Box" Margin="10,0,0,0" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical" DataContext="{Binding LinkBox}">
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="Global ID:" />
+                                            <TextBox Text="{Binding GLOBALID,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="ADMS Name:" />
+                                            <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="ADMS Alias:" />
+                                            <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                            <Border CornerRadius="5" Padding="5" Margin="5" BorderBrush="#f1f1f1" BorderThickness="1" Visibility="{Binding HasSupplyPoint,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel Orientation="Vertical">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Asset Type:" />
+                                        <TextBlock Margin="5,0,0,0" Text="{Binding SupplyPoint.ASSET_TYPE,Mode=OneTime}" />
+                                        <CheckBox IsChecked="{Binding UpdateSupplyPoint,Mode=TwoWay}" Content="Update Supply Point" Margin="10,0,0,0" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical" DataContext="{Binding SupplyPoint}">
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="Global ID:" />
+                                            <TextBox Text="{Binding GLOBALID,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="ADMS Name:" />
+                                            <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock Text="ADMS Alias:" />
+                                            <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        <Border CornerRadius="5" Padding="5" Margin="5" BorderBrush="#f1f1f1" BorderThickness="1" DataContext="{Binding LVFeature}" Visibility="{Binding DataContext.ShowLVMotherSupplyPointPanel, RelativeSource={RelativeSource AncestorType=UserControl},Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <StackPanel Orientation="Vertical">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Asset Type:" />
+                                    <TextBlock Margin="5,0,0,0" Text="{Binding ASSET_TYPE,Mode=OneTime}" />
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Global ID:" />
+                                    <TextBox Text="{Binding GLOBALID,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Subnetwork Name:" />
+                                    <TextBox Text="{Binding SUBNETWORKNAME,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Substation Name:" />
+                                    <TextBox Text="{Binding SS_NAME,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Substation Number:" />
+                                    <TextBox Text="{Binding SS_NUM,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Transformer No:" />
+                                    <TextBox Text="{Binding TX_NO,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Circuit No:" />
+                                    <TextBox Text="{Binding CCT_NO,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Pole No:" />
+                                    <TextBox Text="{Binding POLENUM,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="SPSID:" />
+                                    <TextBox Text="{Binding SPSID,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Address:" />
+                                    <TextBox Text="{Binding ADDRESS,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="ADMS Name:" />
+                                    <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="ADMS Alias:" />
+                                    <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="SOM SS:" />
+                                    <TextBox Text="{Binding SOMSS,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="SOM CCT:" />
+                                    <TextBox Text="{Binding SOMCCT,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border CornerRadius="5" Padding="5" Margin="5" BorderBrush="#f1f1f1" BorderThickness="1" DataContext="{Binding LVFeature}" Visibility="{Binding DataContext.ShowLVSupplyPointPanel, RelativeSource={RelativeSource AncestorType=UserControl},Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <StackPanel Orientation="Vertical">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Asset Type:" />
+                                    <TextBlock Margin="5,0,0,0" Text="{Binding ASSET_TYPE,Mode=OneTime}" />
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Global ID:" />
+                                    <TextBox Text="{Binding GLOBALID,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Subnetwork Name:" />
+                                    <TextBox Text="{Binding SUBNETWORKNAME,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="SPSID:" />
+                                    <TextBox Text="{Binding SPSID,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Address:" />
+                                    <TextBox Text="{Binding ADDRESS,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="ADMS Name:" />
+                                    <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="ADMS Alias:" />
+                                    <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </ScrollViewer>
+
+            <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right" Margin="15">
+                <Button Content="Back"  Command="{Binding BackCommand}" ></Button>
+                <Button Content="Update"  Command="{Binding UpdateCommand}" Margin="5,0,0,0"></Button>
+            </StackPanel>
+        </Grid>
     </Grid>
 
 </UserControl>
