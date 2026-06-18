@@ -218,57 +218,80 @@
                             <StackPanel Orientation="Vertical">
                                 <StackPanel Orientation="Vertical">
                                     <TextBlock Text="GlobalID:" />
-                                    <TextBox Text="{Binding GLOBALID,Mode=OneTime}" IsReadOnly="True"/>
+                                    <TextBox Text="{Binding GLOBALID,Mode=OneTime}" IsReadOnly="True" IsEnabled="False"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical">
                                     <TextBlock Text="Asset Type:" />
-                                    <TextBox Text="{Binding ASSET_TYPE,Mode=OneTime}" IsReadOnly="True"/>
+                                    <TextBox Text="{Binding ASSET_TYPE,Mode=OneTime}" IsReadOnly="True" IsEnabled="False"/>
                                 </StackPanel>
-                                <StackPanel Margin="0,5,0,5" Orientation="Horizontal">
+                                <StackPanel Margin="0,5,0,5" Orientation="Horizontal" Visibility="{Binding ShowCheckBoxs,Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <CheckBox IsChecked="{Binding IsTxInPole}" Content="Transformer/PMS In Pole" Margin="5,0,0,0"></CheckBox>
                                     <CheckBox IsChecked="{Binding IsSingleDevice}" Content="Single Device In Pole" Margin="5,0,0,0"></CheckBox>
                                 </StackPanel>
-                                <StackPanel Orientation="Vertical">
+                                <StackPanel Orientation="Vertical" Visibility="{Binding ShowCircuitFields,Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <TextBlock Text="Circuit Name:" />
-                                    <TextBox Text="{Binding CIRCUIT_NAME,Mode=Default}" IsReadOnly="False"/>
+                                    <TextBox Text="{Binding CIRCUIT_NAME,Mode=Default}" IsReadOnly="False" IsEnabled="{Binding EnableCircuit}"/>
                                 </StackPanel>
-                                <StackPanel Orientation="Vertical">
+                                <StackPanel Orientation="Vertical" Visibility="{Binding ShowCircuitFields,Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <TextBlock Text="Circuit ID:" />
-                                    <TextBox Text="{Binding CIRCUIT_ID,Mode=Default}" IsReadOnly="False"/>
+                                    <TextBox Text="{Binding CIRCUIT_ID,Mode=Default}" IsReadOnly="False" IsEnabled="{Binding EnableCircuit}"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal">
-                                    <StackPanel Orientation="Vertical">
-                                        <TextBlock Text="Pole/Panel No(From):" />
+                                    <StackPanel Orientation="Vertical" Visibility="{Binding ShowFromPoleNo,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock Text="Pole No(From):" />
                                         <TextBox Text="{Binding FROM_POLE_NUM,Mode=Default}" IsReadOnly="False"/>
                                     </StackPanel>
-                                    <StackPanel Margin="10,0,0,0" Orientation="Vertical">
+                                    <StackPanel Margin="10,0,0,0" Orientation="Vertical" Visibility="{Binding ShowToPoleNo,Converter={StaticResource BooleanToVisibilityConverter}}">
                                         <TextBlock Text="Pole No (To):" />
-                                        <TextBox Text="{Binding TO_POLE_NUM,Mode=Default}" IsReadOnly="False"/>
+                                        <TextBox Text="{Binding TO_POLE_NUM,Mode=Default}" IsReadOnly="False">
+                                            <TextBox.Style>
+                                                <Style TargetType="TextBox">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ShowToPoleNoDropdown}" Value="True">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBox.Style>
+                                        </TextBox>
+                                        <ComboBox ItemsSource="{Binding ToPoleNoOptions}" SelectedItem="{Binding TO_POLE_NUM,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}">
+                                            <ComboBox.Style>
+                                                <Style TargetType="ComboBox">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ShowToPoleNoDropdown}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ComboBox.Style>
+                                        </ComboBox>
                                     </StackPanel>
                                 </StackPanel>
-                                <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="Substation Name (From):" />
-                                    <TextBox Text="{Binding FROM_SS_NAME,Mode=Default}" IsReadOnly="False"/>
+                                <StackPanel Orientation="Vertical" Visibility="{Binding ShowFromSubstationFields,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <TextBlock Text="SS Name (Source):" />
+                                    <TextBox Text="{Binding FROM_SS_NAME,Mode=Default}" IsReadOnly="False" IsEnabled="{Binding EnableFromSubstation}"/>
                                 </StackPanel>
-                                <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="Substation Number: (From)" />
-                                    <TextBox Text="{Binding FROM_SS_NUM,Mode=Default}" IsReadOnly="False"/>
+                                <StackPanel Orientation="Vertical" Visibility="{Binding ShowFromSubstationFields,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <TextBlock Text="SS Num (Source):" />
+                                    <TextBox Text="{Binding FROM_SS_NUM,Mode=Default}" IsReadOnly="False" IsEnabled="{Binding EnableFromSubstation}"/>
                                 </StackPanel>
-                                <StackPanel Orientation="Vertical">
+                                <StackPanel Orientation="Vertical" Visibility="{Binding ShowToSubstationFields,Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <TextBlock Text="Substation Name (To):" />
                                     <TextBlock Text="Please manually add BD X if the Spring-CB is in BD X" 
                                            Foreground="#757575" 
                                            FontSize="10" 
                                            Margin="0,1,0,1" />
-                                    <TextBox Text="{Binding TO_SS_NAME,Mode=Default}" IsReadOnly="False"/>
+                                    <TextBox Text="{Binding TO_SS_NAME,Mode=Default}" IsReadOnly="False" IsEnabled="{Binding EnableToSubstation}"/>
                                 </StackPanel>
-                                <StackPanel Orientation="Vertical">
+                                <StackPanel Orientation="Vertical" Visibility="{Binding ShowToSubstationFields,Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <TextBlock Text="Substation Number: (To)" />
                                     <TextBlock Text="Please manually add BX if the Spring-CB is in BX" 
                                            Foreground="#757575" 
                                            FontSize="10" 
                                            Margin="0,1,0,1" />
-                                    <TextBox Text="{Binding TO_SS_NUM,Mode=Default}" IsReadOnly="False"/>
+                                    <TextBox Text="{Binding TO_SS_NUM,Mode=Default}" IsReadOnly="False" IsEnabled="{Binding EnableToSubstation}"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -281,6 +304,14 @@
                             <StackPanel Orientation="Vertical">
                                 <TextBlock Text="ADMS Alias:" />
                                 <TextBox Text="{Binding ADMSAliasDisplay,Mode=Default}" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Vertical" Visibility="{Binding PoleDevice.ShowSOMFields,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="SOMSS:" />
+                                <TextBox Text="{Binding SOMSSDisplay,Mode=Default}" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Vertical" Visibility="{Binding PoleDevice.ShowSOMFields,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="SOMCCT:" />
+                                <TextBox Text="{Binding SOMCCTDisplay,Mode=Default}" IsReadOnly="True"/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>

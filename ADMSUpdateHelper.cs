@@ -407,7 +407,8 @@ namespace CLP.ADMSUpdatePlugin
                 part1 = ReplaceMultipleSpaces($"{first.CIRCUIT_NAME}").PadRight(26);
             part2 = $"P{first.FROM_POLE_NUM}";
             if (first.IsTxInPole) part2 += $"-{first.FROM_SS_NAME} P/M Tx";
-            part2 = ReplaceMultipleSpaces(part2).PadRight(41);
+            else part2 += $"-P{first.TO_POLE_NUM}";
+                part2 = ReplaceMultipleSpaces(part2).PadRight(41);
             part3 = $"FUSE".PadRight(13);
             return $"{part1}{part2}{part3}";
         }
@@ -421,7 +422,12 @@ namespace CLP.ADMSUpdatePlugin
                 part1 = ReplaceMultipleSpaces($"{first.CIRCUIT_ID}").PadRight(7);
             part2 = $"P{first.FROM_POLE_NUM}";
             if (first.IsTxInPole) part2 += $"-{first.FROM_SS_NUM} P/M";
-            if (part2.Length >=15) part2 = ReplaceMultipleSpaces(part2)[..14];
+            else
+            {
+                if($"-P{first.TO_POLE_NUM}".Contains(part2)) part2 += $"-P{first.TO_POLE_NUM}".Replace(part2, "");
+                else part2 += $"-P{first.TO_POLE_NUM}";
+            }
+            if (part2.Length >= 15) part2 = ReplaceMultipleSpaces(part2)[..14];
             part2 = part2.PadRight(15);
             part3 = $"FUSE".PadRight(8);
             return $"{part1}{part2}{part3}";
@@ -434,6 +440,11 @@ namespace CLP.ADMSUpdatePlugin
             part2 = $"P/M Tx".PadRight(41);
             part3 = $"LOAD".PadRight(13);
             return $"{part1}{part2}{part3}";
+        }
+
+        public static string GetSOMSSForFuse(Pole_Model first)
+        {
+            return ReplaceMultipleSpaces(first.CIRCUIT_NAME) + " " + $"P.{first.FROM_POLE_NUM}";
         }
 
         public static string GetADMSAliasForTransformer(Pole_Model first)
