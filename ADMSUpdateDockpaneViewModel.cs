@@ -1,6 +1,5 @@
 ﻿using ArcGIS.Core.Data;
 using ArcGIS.Core.Data.UtilityNetwork;
-using ArcGIS.Core.Data.UtilityNetwork.Trace;
 using ArcGIS.Core.Geometry;
 using ArcGIS.Desktop.Editing;
 using ArcGIS.Desktop.Editing.Attributes;
@@ -13,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using MessageBox = ArcGIS.Desktop.Framework.Dialogs.MessageBox;
 
 namespace CLP.ADMSUpdatePlugin
@@ -72,13 +72,43 @@ namespace CLP.ADMSUpdatePlugin
 
         protected ADMSUpdateDockpaneViewModel()
         {
-            this.NextStepCommand = new RelayCommand(NextStepAsync, () => this.SelectionElement != null || 
-                                                                        (this.UpdateMode == ADMSUpdateMode.PoleCable && this.SelectionElements.Count != 0));
-            this.BackCommand = new RelayCommand(Back);
-            this.UpdateCommand = new RelayCommand(UpdateAsync);
-            this.RefreshCommand = new RelayCommand(RefreshADMS);
+            this.NextStepCommand = new RelayCommand(
+                () => _ = NextStepAsync(),
+                () => !IsBusy && (this.SelectionElement != null ||
+                    (this.UpdateMode == ADMSUpdateMode.PoleCable && this.SelectionElements.Count != 0)));
+            this.BackCommand = new RelayCommand(Back, () => !IsBusy);
+            this.UpdateCommand = new RelayCommand(() => _ = UpdateAsync(), () => !IsBusy);
+            this.RefreshCommand = new RelayCommand(() => _ = RefreshADMS(), () => !IsBusy);
 
             this.PropertyChanged += ADMSUpdateDockpaneViewModel_PropertyChanged;
+        }
+
+        private bool _isBusy;
+
+        public bool IsBusy
+        {
+            get => _isBusy;
+            set
+            {
+                if (SetProperty(ref _isBusy, value))
+                {
+                    CommandManager.InvalidateRequerySuggested();
+                }
+            }
+        }
+
+        private string _loadingStatusText = string.Empty;
+
+        public string LoadingStatusText
+        {
+            get => _loadingStatusText;
+            set => SetProperty(ref _loadingStatusText, value);
+        }
+
+        private void SetBusyState(bool isBusy, string statusText = "")
+        {
+            IsBusy = isBusy;
+            LoadingStatusText = statusText;
         }
 
         private void ADMSUpdateDockpaneViewModel_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -103,7 +133,7 @@ namespace CLP.ADMSUpdatePlugin
                                 SelectUpdateModeRemark = "Plz select the Cable/OHL that needs to be updated";
                                 break;
                             case ADMSUpdateMode.LVFeature:
-                                SelectUpdateModeRemark = "Plz slsect a LV feature (SourceFuse/LocalSupply/SupplyPoint/PillarFuse/LinkBoxLeg)";
+                                SelectUpdateModeRemark = "Plz select a LV feature (SourceFuse/LocalSupply/SupplyPoint/PillarFuse/LinkBoxLeg)";
                                 break;
                             default:
                                 break;
@@ -125,8 +155,11 @@ namespace CLP.ADMSUpdatePlugin
 
         public async Task UpdateAsync()
         {
-            await QueuedTask.Run(async () =>
+            SetBusyState(true, "Updating ADMS fields...");
+            try
             {
+                await QueuedTask.Run(async () =>
+                {
                 var un = MapView.Active?.Map
                     .GetLayersAsFlattenedList()
                     .OfType<UtilityNetworkLayer>()
@@ -410,20 +443,16 @@ namespace CLP.ADMSUpdatePlugin
                         insp["ADMS_Name"] = firstName;
                         insp["ADMS_Alias"] = firstAlias;
 
-                        if (this.PoleDevice.Source.AssetTypeName == "Isolator")
+                        if (this.PoleDevice.Source.AssetTypeName == "Isolator" || 
+                            this.PoleDevice.Source.AssetTypeName == "Switch" || 
+                            this.PoleDevice.Source.AssetTypeName == "Subring Circuit Breaker")
                         {
-                            insp["SOM_SS"] = ADMSUpdateHelper.GetIsolator_SOM_SS(this.PoleDevice);
-                            insp["SOM_CCT"] = ADMSUpdateHelper.GetIsolator_SOM_CCT(this.PoleDevice);
-                        }
-                        else if (this.PoleDevice.Source.AssetTypeName == "Switch")
+                            insp["SOM_SS"] = this.PoleDevice.SOMSS;
+                            insp["SOM_CCT"] = this.PoleDevice.SOMCCT;
+                        } 
+                        else if (this.PoleDevice.Source.AssetTypeName == "Fuse")
                         {
-                            insp["SOM_SS"] = ADMSUpdateHelper.GetPMS_SOM_SS(this.PoleDevice);
-                            insp["SOM_CCT"] = ADMSUpdateHelper.GetPMS_SOM_CCT(this.PoleDevice);
-                        }
-                        else if (this.PoleDevice.Source.AssetTypeName == "Subring Circuit Breaker")
-                        {
-                            insp["SOM_SS"] = ADMSUpdateHelper.GetSubringCB_SOM_SS(this.PoleDevice);
-                            insp["SOM_CCT"] = ADMSUpdateHelper.GetSubringCB_SOM_CCT(this.PoleDevice);
+                            insp["SOM_SS"] = this.PoleDevice.SOMSS;
                         }
 
                         editOp.Modify(insp);
@@ -674,7 +703,12 @@ namespace CLP.ADMSUpdatePlugin
                     MessageBox.Show("FirstHVSwitch or SecondHVSwitch is null.");
                 }
                 LoggerHelper.Info($"Ending ADMS Name & Alias update process at {DateTime.Now}.");
-            });
+                });
+            }
+            finally
+            {
+                SetBusyState(false);
+            }
         }
 
         public void Back() {
@@ -704,8 +738,11 @@ namespace CLP.ADMSUpdatePlugin
 
         public async Task RefreshADMS()
         {
-            await QueuedTask.Run(async () =>
+            SetBusyState(true, "Refreshing preview...");
+            try
             {
+                await QueuedTask.Run(async () =>
+                {
                 if (this.UpdateMode == ADMSUpdateMode.Pole)
                 {
                     this.ADMSNameDisplay = this.PoleDevice.ADMS_Name;
@@ -719,8 +756,12 @@ namespace CLP.ADMSUpdatePlugin
                     this.ADMSAliasDisplay = ADMSUpdateHelper.GetADMSAliasForPoleCable(this.CABLE_CIRCUIT_ID, "XXXXXX");
                 }
                 
-            });
-            
+                });
+            }
+            finally
+            {
+                SetBusyState(false);
+            }
         }
 
         protected override void OnHidden()
@@ -942,72 +983,49 @@ namespace CLP.ADMSUpdatePlugin
             set => SetProperty(ref _selectionElement, value);
         }
 
-        public async Task TraceHVSwitchs(SS_TO_SS_Model hvSwitchModel,UtilityNetwork utilityNetwork, UtilityNetworkDefinition utilityNetworkDefinition, DomainNetwork domainNetwork, IEnumerable<Element> startElements)
+        public async Task TraceHVSwitchs(SS_TO_SS_Model hvSwitchModel,UtilityNetwork utilityNetwork, UtilityNetworkDefinition utilityNetworkDefinition, IEnumerable<Element> startElements)
         {
+            var priorStatus = LoadingStatusText;
+            LoadingStatusText = "Tracing busbar...";
             if (startElements.Count() == 2)
             {
                 startElements.First().Terminal = startElements.First().AssetType.GetTerminalConfiguration().Terminals.FirstOrDefault(p => p.Name == "CB:Bus Side" || p.Name== "Source" || p.Name == "SS:S1");
                 startElements.Last().Terminal = startElements.Last().AssetType.GetTerminalConfiguration().Terminals.FirstOrDefault(p => p.Name == "CB:Line Side" || p.Name == "Load" || p.Name == "SS:S2");
             }
-            Tier sourceTier = domainNetwork.GetTier("HV");
-            TraceConfiguration cfg = sourceTier.GetTraceConfiguration();
-            cfg.Propagators = new List<Propagator>();
-            var catSub = utilityNetworkDefinition
-                .GetAvailableCategories()
-                .FirstOrDefault(c => c.Equals("E:Switch", StringComparison.OrdinalIgnoreCase));
-            cfg.Filter.Scope = TraversabilityScope.JunctionsAndEdges;
-            if (catSub != null)
-                if (catSub != null)
-                {
-                    var catExpr = new CategoryComparison(CategoryOperator.IsEqual, catSub);
-                    var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                    cfg.Traversability.Barriers = existing == null ? (Condition)catExpr : new Or(existing, catExpr);
-                }
-            cfg.Traversability.Barriers = TraceCfgHelpers.RemoveAttrFromBarriers(cfg.Traversability.Barriers, new string[] { "NormalOperatingStatus", "Life Cycle Status" });
-            var lifeCycleStatuses = new List<int> { 1 }; // 需要的状态值 0, 1, 3
-            foreach (var status in lifeCycleStatuses)
+            try
             {
-                var lifeCycleStatusAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "LifeCycleStatus", "Life Cycle Status");
-                if (lifeCycleStatusAttr != null)
+                var features = await UtilityNetworkTraceRunner.RunConnectedTraceAsync(
+                    utilityNetwork,
+                    utilityNetworkDefinition,
+                    startElements,
+                    new TraceRunRequest { TierName = "HV", Preset = TraceBarrierPreset.HvBusbar }
+                    );
+
+                if (!hvSwitchModel.SSNAME.Contains("CUST EQPT"))
                 {
-                    var statusExpr = new NetworkAttributeComparison(lifeCycleStatusAttr, Operator.Equal, status);
-                    var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                    cfg.Traversability.Barriers = existing == null ? (Condition)statusExpr : new Or(existing, statusExpr);
-                }
-            }
-            using (TraceManager traceManager = utilityNetwork.GetTraceManager())
-            {
-                try
-                {
-                    TraceArgument traceArgument = new TraceArgument(startElements);
-                    traceArgument.Configuration = cfg;
-                    Tracer tracer = traceManager.GetTracer<ConnectedTracer>();
-                    IReadOnlyList<Result> traceResults = tracer.Trace(traceArgument);
-                    var results = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(traceResults);
-                    await HighlightPathOnMapAsync(utilityNetwork, results.FeatureByGlobalId.Values);
-                    var features = results.FeatureByGlobalId.Values;
-                    if (!hvSwitchModel.SSNAME.Contains("CUST EQPT"))
+                    var busBars = features.Where(p => p.IsHVBusbar);
+                    var busNodes = features.Where(p => p.IsHVBusNode);
+                    if (busBars.Any())
                     {
-                        var busBars = features.Where(p => p.IsHVBusbar);
-                        var busNodes = features.Where(p => p.IsHVBusNode);
-                        if (busBars.Any())
-                        {
-                            hvSwitchModel.Busbar = busBars.FirstOrDefault();
-                            String traceInfo = $"Trace BusBars INFO\nSWitch:[{startElements.First().ObjectID},{startElements.First().GlobalID}],BusBars :[{String.Join(",", busBars.Select(p => $"{p.ObjectID},{p.GlobalID}"))}]";
-                            LoggerHelper.Info(traceInfo);
-                        }
-                        if (busNodes.Any())
-                        {
-                            hvSwitchModel.BusNodes = busNodes.ToList();
-                        }
+                        hvSwitchModel.Busbar = busBars.FirstOrDefault();
+                        String traceInfo = $"Trace BusBars INFO\nSWitch:[{startElements.First().ObjectID},{startElements.First().GlobalID}],BusBars :[{String.Join(",", busBars.Select(p => $"{p.ObjectID},{p.GlobalID}"))}]";
+                        LoggerHelper.Info(traceInfo);
+                    }
+                    if (busNodes.Any())
+                    {
+                        hvSwitchModel.BusNodes = busNodes.ToList();
                     }
                 }
-                catch (Exception e)
-                {
-                    String traceInfo = $"Fail to trace busbar\nSWitch:FROM [{startElements.First().ObjectID},{startElements.First().GlobalID}],TO[{startElements.Last().ObjectID},{startElements.Last().GlobalID}]";
-                    MessageBox.Show("Fail to trace busbar:" + e.Message);
-                    LoggerHelper.Error(e, traceInfo);
-                }
+            }
+            catch (Exception e)
+            {
+                String traceInfo = $"Fail to trace busbar\nSWitch:FROM [{startElements.First().ObjectID},{startElements.First().GlobalID}],TO[{startElements.Last().ObjectID},{startElements.Last().GlobalID}]";
+                MessageBox.Show("Fail to trace busbar:" + e.Message);
+                LoggerHelper.Error(e, traceInfo);
+            }
+            finally
+            {
+                LoadingStatusText = priorStatus;
             }
         }
 
@@ -1091,7 +1109,10 @@ namespace CLP.ADMSUpdatePlugin
 
         public async Task NextStepAsync()
         {
-            await QueuedTask.Run(async () => {
+            SetBusyState(true, "Processing...");
+            try
+            {
+                await QueuedTask.Run(async () => {
                 if (SelectionElement == null || (this.UpdateMode != ADMSUpdateMode.PoleCable && this.SelectionElements.Count == 0)) return;
                 var utilityNetwork = MapView.Active?.Map
                     .GetLayersAsFlattenedList()
@@ -1105,73 +1126,32 @@ namespace CLP.ADMSUpdatePlugin
                         {
                             if (this.UpdateMode == ADMSUpdateMode.SS_TO_SS)
                             {
-                                DomainNetwork domainNetwork = utilityNetworkDefinition.GetDomainNetwork("Electric");
-                                Tier sourceTier = domainNetwork.GetTier("HV");
                                 LoggerHelper.Info($"Trace start at: {DateTime.Now}");
-                                TraceConfiguration cfg = sourceTier.GetTraceConfiguration();
-                                cfg.Propagators = new List<Propagator>();
-                                var catSub = utilityNetworkDefinition
-                                    .GetAvailableCategories()
-                                    .FirstOrDefault(c => c.Equals("E:Switch", StringComparison.OrdinalIgnoreCase));
-                                cfg.Filter.Scope = TraversabilityScope.JunctionsAndEdges;
-                                if (catSub != null)
-                                {
-                                    var catExpr = new CategoryComparison(CategoryOperator.IsEqual, catSub);
-                                    var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                    cfg.Traversability.Barriers = existing == null ? (Condition)catExpr : new Or(existing, catExpr);
-                                }
+                                LoadingStatusText = "Running trace...";
+                                var startElement = this.SelectionElement;
 
-                                // condition_barriers="Category IS_EQUAL_TO SPECIFIC_VALUE E:Switch OR;'Asset group' IS_EQUAL_TO SPECIFIC_VALUE 51 OR;'Life Cycle Status' IS_EQUAL_TO SPECIFIC_VALUE 3 OR;'Life Cycle Status' IS_EQUAL_TO SPECIFIC_VALUE 4 OR;'Life Cycle Status' IS_EQUAL_TO SPECIFIC_VALUE 0 #",
-                                cfg.Traversability.Barriers = TraceCfgHelpers.RemoveAttrFromBarriers(cfg.Traversability.Barriers, new string[] { "NormalOperatingStatus", "Life Cycle Status" });
-                                var lifeCycleStatuses = new List<int> { 0, 4, 3 }; // 需要的状态值 0, 1, 3
-                                foreach (var status in lifeCycleStatuses)
+                                if (startElement.AssetGroup.Name == "HV Switch")
                                 {
-                                    var lifeCycleStatusAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "LifeCycleStatus", "Life Cycle Status");
-                                    if (lifeCycleStatusAttr != null)
+                                    if (startElement.AssetType.Name == "Source Circuit Breaker")
                                     {
-                                        var statusExpr = new NetworkAttributeComparison(lifeCycleStatusAttr, Operator.Equal, status);
-                                        var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                        cfg.Traversability.Barriers = existing == null ? (Condition)statusExpr : new Or(existing, statusExpr);
+                                        var tcfg = startElement.AssetType.GetTerminalConfiguration();
+                                        startElement.Terminal = tcfg.Terminals.FirstOrDefault(p => p.Name == "Load");
+                                    }
+                                    else
+                                    {
+                                        var tcfg = startElement.AssetType.GetTerminalConfiguration();
+                                        startElement.Terminal = tcfg.Terminals.FirstOrDefault(p => p.Name == "CB:Line Side");
                                     }
                                 }
-                                var assetGroupAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "Assetgroup", "Asset group");
-                                if (assetGroupAttr != null)
-                                {
-                                    var assetGroupExpr = new NetworkAttributeComparison(assetGroupAttr, Operator.Equal, 51);
-                                    var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                    cfg.Traversability.Barriers = existing == null ? (Condition)assetGroupExpr : new Or(existing, assetGroupExpr);
-                                }
-                                using (TraceManager traceManager = utilityNetwork.GetTraceManager())
-                                {
-                                    var startElement = this.SelectionElement;
 
+                                var features = await UtilityNetworkTraceRunner.RunConnectedTraceAsync(
+                                    utilityNetwork,
+                                    utilityNetworkDefinition,
+                                    startElement,
+                                    new TraceRunRequest { TierName = "HV", Preset = TraceBarrierPreset.HvSsToSs },
+                                    traceFeatures => HighlightPathOnMapAsync(utilityNetwork, traceFeatures));
+                                LoggerHelper.Info($"Trace end at: {DateTime.Now}");
 
-                                    if (startElement.AssetGroup.Name == "HV Switch")
-                                    {
-                                        if (startElement.AssetType.Name == "Source Circuit Breaker")
-                                        {
-                                            var tcfg = startElement.AssetType.GetTerminalConfiguration();
-                                            startElement.Terminal = tcfg.Terminals.FirstOrDefault(p => p.Name == "Load");
-                                        }
-                                        else
-                                        {
-                                            var tcfg = startElement.AssetType.GetTerminalConfiguration();
-                                            startElement.Terminal = tcfg.Terminals.FirstOrDefault(p => p.Name == "CB:Line Side");
-                                        }
-                                    }
-
-                                    //var tcf = this.SelectionHVLine.AssetType.GetTerminalConfiguration();
-                                    //var terminal = tcf.Terminals.FirstOrDefault(p => "LOAD".Equals(p.Name, StringComparison.OrdinalIgnoreCase));
-                                    //startElement.Terminal = terminal;
-                                    TraceArgument traceArgument = new TraceArgument(new List<Element>() { this.SelectionElement });
-                                    traceArgument.Configuration = cfg;
-                                    Tracer tracer = traceManager.GetTracer<ConnectedTracer>();
-                                    IReadOnlyList<Result> traceResults = tracer.Trace(traceArgument);
-                                    var results = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(traceResults);
-                                    LoggerHelper.Info($"Trace end at: {DateTime.Now}");
-                                    await HighlightPathOnMapAsync(utilityNetwork, results.FeatureByGlobalId.Values);
-
-                                    var features = results.FeatureByGlobalId.Values;
                                     //HV Switch
                                     var hvSwitchs = features.Where(p => p.AssetGroupName == "HV Switch");
                                     var transfomers = features.Where(p => p.AssetGroupName == "Transformer");
@@ -1188,7 +1168,8 @@ namespace CLP.ADMSUpdatePlugin
                                     {
                                         resultType = SS_TO_SS_ResultType.CB_TO_TRANSFORMER;
                                     }
-                                    
+
+                                    LoadingStatusText = "Getting associations...";
                                     var hvSwitchAssociations = utilityNetwork.TraverseAssociations(hvSwitchs.Select(p => p.Element), new TraverseAssociationsDescription(TraversalDirection.Ascending));
                                     SS_TO_SS_Model first = null;
                                     SS_TO_SS_Model second = null;
@@ -1325,11 +1306,11 @@ namespace CLP.ADMSUpdatePlugin
                                             first.ResultType = resultType;
                                             String traceInfo = $"Trace INFO:Switch:[{first.Source.ObjectID},{first.Source.GlobalID}],Substation :[{second.SSCODE},{second.SSNAME}],Switch:[{second.Source.ObjectID},{second.Source.GlobalID}],Substation :[{second.SSCODE},{second.SSNAME}]";
                                             LoggerHelper.Info(traceInfo);
-                                            await TraceHVSwitchs(first, utilityNetwork, utilityNetworkDefinition, domainNetwork, new Element[] {
+                                            await TraceHVSwitchs(first, utilityNetwork, utilityNetworkDefinition, new Element[] {
                                                 first.Source.Element,
                                                 second.Source.Element
                                             });
-                                            await TraceHVSwitchs(second, utilityNetwork, utilityNetworkDefinition, domainNetwork, new Element[] {
+                                            await TraceHVSwitchs(second, utilityNetwork, utilityNetworkDefinition, new Element[] {
                                                 second.Source.Element,
                                                 first.Source.Element
                                             });
@@ -1363,6 +1344,7 @@ namespace CLP.ADMSUpdatePlugin
                                     else if (resultType == SS_TO_SS_ResultType.CB_TO_TRANSFORMER && transfomers.Any())
                                     {
                                         var transfomer = transfomers.First();
+                                        LoadingStatusText = "Getting associations...";
                                         var transfomerAssociations = utilityNetwork.TraverseAssociations(transfomers.Select(p => p.Element), new TraverseAssociationsDescription(TraversalDirection.Ascending));
                                         foreach (var transfomerhAssociation in transfomerAssociations.Associations)
                                         {
@@ -1414,7 +1396,6 @@ namespace CLP.ADMSUpdatePlugin
                                         }
 
                                     }
-                                }
                             
                             }
                             else if (this.UpdateMode == ADMSUpdateMode.SpareCB)
@@ -1422,6 +1403,7 @@ namespace CLP.ADMSUpdatePlugin
                                 LoggerHelper.Info($"Starting to process Spare HV Switch at {DateTime.Now}");
                                 var startElement = this.SelectionElement;
                                 LoggerHelper.Info($"Starting to get Spare HV Switch Association at {DateTime.Now}");
+                                LoadingStatusText = "Getting associations...";
                                 var hvSwitchAssociations = utilityNetwork.GetAssociations(startElement);
                                 LoggerHelper.Info($"Ending to get Spare HV Switch Association at {DateTime.Now}");
                                 SS_TO_SS_Model first = null;
@@ -1435,8 +1417,8 @@ namespace CLP.ADMSUpdatePlugin
                                     if (hvSwitchAssociation.FromElement.AssetGroup.Name == "Substation" && 
                                         hvSwitchAssociation.ToElement.AssetGroup.Name == "HV Switch")
                                     {
-                                        var deviceLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == "HV Switch");
-                                        var substationLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == "Substation");
+                                        var deviceLayer = FeatureQueryHelper.GetFeatureLayer("HV Switch");
+                                        var substationLayer = FeatureQueryHelper.GetFeatureLayer("Substation");
                                         if (deviceLayer == null)
                                         {
                                             MessageBox.Show("Fail to found layer HV Switch.");
@@ -1447,37 +1429,13 @@ namespace CLP.ADMSUpdatePlugin
                                             MessageBox.Show("Fail to found layer Substation.");
                                             return;
                                         }
-                                        // Now you can run selections, queries, etc.
                                         FeatureSnapshot firstSwitchFeature = null;
                                         FeatureSnapshot firstSubstationFeature = null;
                                         LoggerHelper.Info($"Starting to query target element (switch) info at {DateTime.Now}");
-                                        var qf = new QueryFilter { WhereClause = "GLOBALID = '{" + hvSwitchAssociation.ToElement.GlobalID + "}'" };
-                                        using (var switchCursor = deviceLayer.GetFeatureClass().Search(qf))
-                                        {
-                                            if (switchCursor.MoveNext())
-                                            {
-                                                var row = switchCursor.Current;
-                                                var element = utilityNetwork.CreateElement(row);
-                                                var results = new SpatialSubgraphExtractor(utilityNetwork).Extract([element]);
-                                                var features = results.FeatureByGlobalId.Values;
-                                                firstSwitchFeature = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.ToElement.GlobalID);
-                                            }
-                                        }
+                                        firstSwitchFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, "HV Switch", hvSwitchAssociation.ToElement.GlobalID);
                                         LoggerHelper.Info($"Ending to query target element (switch) info at {DateTime.Now}");
                                         LoggerHelper.Info($"Starting to query target element (substation) info at {DateTime.Now}");
-                                        qf.WhereClause = "GLOBALID = '{" + hvSwitchAssociation.FromElement.GlobalID + "}'";
-                                        using (var substationCusor = substationLayer.GetFeatureClass().Search(qf))
-                                        {
-
-                                            if (substationCusor.MoveNext())
-                                            {
-                                                var row = substationCusor.Current;
-                                                var element = utilityNetwork.CreateElement(row);
-                                                var results = new SpatialSubgraphExtractor(utilityNetwork).Extract([element]);
-                                                var features = results.FeatureByGlobalId.Values;
-                                                firstSubstationFeature = features.FirstOrDefault(p => p.Element.GlobalID == hvSwitchAssociation.FromElement.GlobalID);
-                                            }
-                                        }
+                                        firstSubstationFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, "Substation", hvSwitchAssociation.FromElement.GlobalID);
                                         LoggerHelper.Info($"Ending to query target element (substation) info at {DateTime.Now}");
                                         first = new SS_TO_SS_Model(firstSwitchFeature, utilityNetwork);
                                         first.SSCODE = firstSubstationFeature.Attributes["SSNUM"]?.ToString();
@@ -1502,6 +1460,7 @@ namespace CLP.ADMSUpdatePlugin
                             {
                                 var startElement = this.SelectionElement;
                                 LoggerHelper.Info($"Starting to get Pole/Substation feature Association at {DateTime.Now}");
+                                LoadingStatusText = "Getting associations...";
                                 var elementAssociations = utilityNetwork.GetAssociations(startElement);
                                 Pole_Model first = null;
                                 bool isSingleDevice = false;
@@ -1509,8 +1468,8 @@ namespace CLP.ADMSUpdatePlugin
                                 {
                                     if(elementAssociation.FromElement.AssetGroup.Name == "Support Structure")
                                     {
-                                        var deviceLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == elementAssociation.ToElement.AssetGroup.Name);
-                                        var substationLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == elementAssociation.FromElement.AssetGroup.Name);
+                                        var deviceLayer = FeatureQueryHelper.GetFeatureLayer(elementAssociation.ToElement.AssetGroup.Name);
+                                        var substationLayer = FeatureQueryHelper.GetFeatureLayer(elementAssociation.FromElement.AssetGroup.Name);
                                         if (deviceLayer == null)
                                         {
                                             MessageBox.Show($"Fail to found layer {elementAssociation.ToElement.AssetGroup.Name}.");
@@ -1521,42 +1480,19 @@ namespace CLP.ADMSUpdatePlugin
                                             MessageBox.Show($"Fail to found layer {elementAssociation.FromElement.AssetGroup.Name}.");
                                             return;
                                         }
-                                        //deviceLayer.GetFeatureClass().Search();
-                                        // Now you can run selections, queries, etc.
                                         FeatureSnapshot firstSwitchFeature = null;
                                         FeatureSnapshot firstPoleFeature = null;
                                         Row txAttributes = null;
+                                        string inPoleType = null;
                                         FeatureSnapshot tracedTransformer = null;
                                         List<string> tracedIsolatorPoleNums = new List<string>();
                                         List<string> tracedFusePoleNums = new List<string>();
-                                        var isTxInPole = false;
-                                        bool isolatorTraceHasSubringCB = true;
-                                        var qf = new QueryFilter { WhereClause = "GLOBALID = '{" + elementAssociation.ToElement.GlobalID + "}'" };
-                                        using (var switchCursor = deviceLayer.GetFeatureClass().Search(qf))
-                                        {
-                                            if (switchCursor.MoveNext())
-                                            {
-                                                var row = switchCursor.Current;
-                                                var element = utilityNetwork.CreateElement(row);
-                                                var results = new SpatialSubgraphExtractor(utilityNetwork).Extract([element]);
-                                                var features = results.FeatureByGlobalId.Values;
-                                                firstSwitchFeature = features.FirstOrDefault(p => p.Element.GlobalID == elementAssociation.ToElement.GlobalID);
-                                            }
-                                        }
-
-                                        qf.WhereClause = "GLOBALID = '{" + elementAssociation.FromElement.GlobalID + "}'";
-                                        using (var substationCusor = substationLayer.GetFeatureClass().Search(qf))
-                                        {
-
-                                            if (substationCusor.MoveNext())
-                                            {
-                                                var row = substationCusor.Current;
-                                                var element = utilityNetwork.CreateElement(row);
-                                                var results = new SpatialSubgraphExtractor(utilityNetwork).Extract([element]);
-                                                var features = results.FeatureByGlobalId.Values;
-                                                firstPoleFeature = features.FirstOrDefault(p => p.Element.GlobalID == elementAssociation.FromElement.GlobalID);
-                                            }
-                                        }
+                                        var isTxOrPMSInPole = false;
+                                        bool isolatorTraceHasSubringCB = true; 
+                                        string isolatorToSsName = null;
+                                        string isolatorToSsNum = null;
+                                        firstSwitchFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, elementAssociation.ToElement.AssetGroup.Name, elementAssociation.ToElement.GlobalID);
+                                        firstPoleFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, elementAssociation.FromElement.AssetGroup.Name, elementAssociation.FromElement.GlobalID);
 
                                         if(firstSwitchFeature.AssetGroupName != "Transformer")
                                         {
@@ -1567,79 +1503,51 @@ namespace CLP.ADMSUpdatePlugin
                                                 isSingleDevice = true;
                                             if (firstSwitchFeature.AssetGroupName == "HV Fuse" && firstSwitchFeature.AssetTypeName == "Fuse")
                                             {
-                                                DomainNetwork domainNetwork = utilityNetworkDefinition.GetDomainNetwork("Electric");
-                                                Tier sourceTier = domainNetwork.GetTier("HV");
-                                                var tcfg = startElement.AssetType.GetTerminalConfiguration();
-                                                startElement.Terminal = tcfg.Terminals.FirstOrDefault(p => p.Name == "Node 2");
-                                                TraceConfiguration cfg = sourceTier.GetTraceConfiguration();
-                                                cfg.Propagators = new List<Propagator>();
-                                                cfg.Filter.Scope = TraversabilityScope.JunctionsAndEdges;
-                                                cfg.Traversability.Barriers = TraceCfgHelpers.RemoveAttrFromBarriers(cfg.Traversability.Barriers, new string[] { "Life Cycle Status", "Asset Type", "AssetType" });
-
-                                                var lifeCycleStatusAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "LifeCycleStatus", "Life Cycle Status");
-                                                if (lifeCycleStatusAttr != null)
+                                                foreach (var poleAssociation in poleAssociations)
                                                 {
-                                                    var notInServiceStatuses = new List<int> { 0, 1, 3, 4 };
-                                                    foreach (var status in notInServiceStatuses)
+                                                    if (poleAssociation.ToElement.AssetGroup.Name == "Transformer" ||
+                                                        (poleAssociation.ToElement.AssetGroup.Name == "HV Switch" &&
+                                                        poleAssociation.ToElement.AssetType.Name == "Switch"))
                                                     {
-                                                        var statusExpr = new NetworkAttributeComparison(lifeCycleStatusAttr, Operator.Equal, status);
-                                                        var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                                        cfg.Traversability.Barriers = existing == null ? (Condition)statusExpr : new Or(existing, statusExpr);
-                                                    }
-                                                }
-
-                                                var assetTypeAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "Assetgroup", "Asset group", "AssetGroup");
-                                                if (assetTypeAttr != null)
-                                                {
-                                                    var transformerExpr = new NetworkAttributeComparison(assetTypeAttr, Operator.Equal, 51);
-                                                    var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                                    cfg.Traversability.Barriers = existing == null ? (Condition)transformerExpr : new Or(existing, transformerExpr);
-                                                }
-
-                                                var assetGroupAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "Assetgroup", "Asset group", "AssetGroup");
-                                                if (assetGroupAttr != null)
-                                                {
-                                                    var assetGroupExpr = new NetworkAttributeComparison(assetGroupAttr, Operator.Equal, 61);
-                                                    var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                                    cfg.Traversability.Barriers = existing == null ? (Condition)assetGroupExpr : new Or(existing, assetGroupExpr);
-                                                }
-
-                                                using (TraceManager traceManager = utilityNetwork.GetTraceManager())
-                                                {
-                                                    TraceArgument traceArgument = new TraceArgument(new List<Element>() { startElement });
-                                                    traceArgument.Configuration = cfg;
-                                                    Tracer tracer = traceManager.GetTracer<ConnectedTracer>();
-                                                    IReadOnlyList<Result> traceResults = tracer.Trace(traceArgument);
-                                                    var traceExtract = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(traceResults);
-                                                    await HighlightPathOnMapAsync(utilityNetwork, traceExtract.FeatureByGlobalId.Values);
-                                                    tracedFusePoleNums = traceExtract.FeatureByGlobalId.Values
-                                                        .Where(p => p.NetworkSourceName == "StructureJunction"
-                                                            && p.AssetGroupName == "Support Structure"
-                                                            && p.AssetTypeName == "HV Pole")
-                                                        .Select(p => p.GetString("POLENUM"))
-                                                        .Where(p => !string.IsNullOrEmpty(p))
-                                                        .Distinct()
-                                                        .ToList();
-                                                    var transformers = traceExtract.FeatureByGlobalId.Values.Where(p => p.AssetGroupName == "Transformer").ToList();
-                                                    if (!transformers.Any())
-                                                    {
-                                                        MessageBox.Show("No transformer found.");
-                                                        return;
-                                                    }
-
-                                                    foreach (var transformer in transformers)
-                                                    {
-                                                        var transformerAssociations = utilityNetwork.GetAssociations(transformer.Element);
-                                                        tracedTransformer = transformer;
-                                                        if (transformerAssociations.Any(i =>
-                                                            (i.FromElement.GlobalID == firstPoleFeature.Element.GlobalID && i.ToElement.GlobalID == transformer.Element.GlobalID) ||
-                                                            (i.ToElement.GlobalID == firstPoleFeature.Element.GlobalID && i.FromElement.GlobalID == transformer.Element.GlobalID)))
+                                                        if (FeatureQueryHelper.GetFeatureLayer(poleAssociation.ToElement.AssetGroup.Name) == null)
                                                         {
-                                                            isTxInPole = true;
+                                                            MessageBox.Show($"Fail to found layer {poleAssociation.ToElement.AssetGroup.Name}.");
+                                                            return;
                                                         }
+                                                        txAttributes = FeatureQueryHelper.QueryRowByGlobalId(poleAssociation.ToElement.AssetGroup.Name, poleAssociation.ToElement.GlobalID);
+                                                        isTxOrPMSInPole = true;
+                                                        inPoleType = poleAssociation.ToElement.AssetType.Name == "Switch"
+                                                            ? "PMS"
+                                                            : poleAssociation.ToElement.AssetGroup.Name == "Transformer"
+                                                                ? "Transformer"
+                                                                : null;
                                                         break;
                                                     }
                                                 }
+
+                                                LoadingStatusText = "Running trace...";
+                                                var traceFeatures = await UtilityNetworkTraceRunner.RunConnectedTraceAsync(
+                                                    utilityNetwork,
+                                                    utilityNetworkDefinition,
+                                                    startElement,
+                                                    new TraceRunRequest { TierName = "HV", TerminalName = "Node 2", Preset = TraceBarrierPreset.HvFuse },
+                                                    features => HighlightPathOnMapAsync(utilityNetwork, features));
+                                                tracedFusePoleNums = traceFeatures
+                                                    .Where(p => p.NetworkSourceName == "StructureJunction"
+                                                        && p.AssetGroupName == "Support Structure"
+                                                        && p.AssetTypeName == "HV Pole")
+                                                    .Select(p => p.GetString("POLENUM"))
+                                                    .Where(p => !string.IsNullOrEmpty(p))
+                                                    .Distinct()
+                                                    .ToList();
+                                                var transformers = traceFeatures.Where(p => p.AssetGroupName == "Transformer").ToList();
+                                                if (!transformers.Any())
+                                                {
+                                                    MessageBox.Show("No transformer found.");
+                                                    return;
+                                                }
+
+                                                tracedTransformer = transformers.First();
                                             }
                                             else if (firstSwitchFeature.AssetTypeName == "Isolator")
                                             {
@@ -1650,84 +1558,69 @@ namespace CLP.ADMSUpdatePlugin
                                                         poleAssociation.ToElement.AssetType.Name == "Switch") && 
                                                         firstSwitchFeature.AssetTypeName == "Isolator")
                                                     {
-                                                        var layer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == poleAssociation.ToElement.AssetGroup.Name);
-                                                        if (layer == null)
+                                                        if (FeatureQueryHelper.GetFeatureLayer(poleAssociation.ToElement.AssetGroup.Name) == null)
                                                         {
                                                             MessageBox.Show($"Fail to found layer {poleAssociation.ToElement.AssetGroup.Name}.");
                                                             return;
                                                         }
-                                                        var qf_tx = new QueryFilter { WhereClause = "GLOBALID = '{" + poleAssociation.ToElement.GlobalID + "}'" };
-                                                        using (var switchCursor = layer.GetFeatureClass().Search(qf_tx))
-                                                        {
-                                                            if (switchCursor.MoveNext())
-                                                            {
-                                                                var row = switchCursor.Current;
-                                                                txAttributes = row;
-                                                            }
-                                                        }
+                                                        txAttributes = FeatureQueryHelper.QueryRowByGlobalId(poleAssociation.ToElement.AssetGroup.Name, poleAssociation.ToElement.GlobalID);
+                                                        inPoleType = poleAssociation.ToElement.AssetType.Name == "Switch"
+                                                            ? "PMS"
+                                                            : poleAssociation.ToElement.AssetGroup.Name == "Transformer"
+                                                                ? "Transformer"
+                                                                : null;
                                                         break;
                                                     }
                                                 }
 
-                                                DomainNetwork domainNetwork = utilityNetworkDefinition.GetDomainNetwork("Electric");
-                                                Tier sourceTier = domainNetwork.GetTier("HV");
-                                                var tcfg = startElement.AssetType.GetTerminalConfiguration();
-                                                startElement.Terminal = tcfg.Terminals.FirstOrDefault(p => p.Name == "SS:S1");
-                                                TraceConfiguration cfg = sourceTier.GetTraceConfiguration();
-                                                cfg.Propagators = new List<Propagator>();
-                                                cfg.Filter.Scope = TraversabilityScope.JunctionsAndEdges;
-                                                cfg.Traversability.Barriers = null;
+                                                LoadingStatusText = "Running trace...";
+                                                var traceFeatures = await UtilityNetworkTraceRunner.RunConnectedTraceAsync(
+                                                    utilityNetwork,
+                                                    utilityNetworkDefinition,
+                                                    startElement,
+                                                    new TraceRunRequest { TierName = "HV", TerminalName = "SS:S1", Preset = TraceBarrierPreset.HvIsolatorLike },
+                                                    features => HighlightPathOnMapAsync(utilityNetwork, features));
+                                                isolatorTraceHasSubringCB = traceFeatures.Any(p => p.AssetTypeName == "Subring Circuit Breaker" || p.AssetTypeName == "Switch");
+                                                tracedIsolatorPoleNums = traceFeatures
+                                                    .Where(p => p.NetworkSourceName == "StructureJunction"
+                                                        && p.AssetGroupName == "Support Structure"
+                                                        && p.AssetTypeName == "HV Pole")
+                                                    .Select(p => p.GetString("POLENUM"))
+                                                    .Where(p => !string.IsNullOrEmpty(p))
+                                                    .Distinct()
+                                                    .ToList();
 
-                                                var catSwitch = utilityNetworkDefinition
-                                                    .GetAvailableCategories()
-                                                    .FirstOrDefault(c => c.Equals("E:Switch", StringComparison.OrdinalIgnoreCase));
-                                                if (catSwitch != null)
+                                                if (isolatorTraceHasSubringCB)
                                                 {
-                                                    cfg.Traversability.Barriers = (Condition)new CategoryComparison(CategoryOperator.IsEqual, catSwitch);
-                                                }
-
-                                                var assetGroupAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "Assetgroup", "Asset group", "AssetGroup");
-                                                if (assetGroupAttr != null)
-                                                {
-                                                    foreach (var assetGroup in new List<int> { 61, 51 })
+                                                    var tracedBarrierDevice = traceFeatures.FirstOrDefault(p => p.AssetTypeName == "Subring Circuit Breaker")
+                                                        ?? traceFeatures.FirstOrDefault(p => p.AssetTypeName == "Switch");
+                                                    if (tracedBarrierDevice != null)
                                                     {
-                                                        var assetGroupExpr = new NetworkAttributeComparison(assetGroupAttr, Operator.Equal, assetGroup);
-                                                        var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                                        cfg.Traversability.Barriers = existing == null ? (Condition)assetGroupExpr : new Or(existing, assetGroupExpr);
+                                                        var barrierAssociations = utilityNetwork.GetAssociations(tracedBarrierDevice.Element);
+                                                        var substationAssociation = barrierAssociations.FirstOrDefault(a =>
+                                                            a.FromElement.AssetGroup.Name == "Substation"
+                                                            && a.ToElement.GlobalID == tracedBarrierDevice.Element.GlobalID);
+                                                        if (substationAssociation != null)
+                                                        {
+                                                            var substationFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(
+                                                                utilityNetwork, "Substation", substationAssociation.FromElement.GlobalID);
+                                                            if (substationFeature != null)
+                                                            {
+                                                                isolatorToSsName = substationFeature.Attributes["SSNAME"]?.ToString();
+                                                                isolatorToSsNum = substationFeature.Attributes["SSNUM"]?.ToString();
+                                                            }
+                                                        }
+                                                        else if (tracedBarrierDevice.AssetTypeName == "Switch")
+                                                        {
+                                                            var poleAssociation = barrierAssociations.FirstOrDefault(a =>
+                                                                a.FromElement.AssetGroup.Name == "Support Structure"
+                                                                && a.ToElement.GlobalID == tracedBarrierDevice.Element.GlobalID);
+                                                            if (poleAssociation != null)
+                                                            {
+                                                                isolatorTraceHasSubringCB = false;
+                                                            }
+                                                        }
                                                     }
-                                                }
-
-                                                var lifeCycleStatusAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "LifeCycleStatus", "Life Cycle Status");
-                                                if (lifeCycleStatusAttr != null)
-                                                {
-                                                    var notInServiceStatuses = new List<int> { 0, 1, 3, 4 };
-                                                    foreach (var status in notInServiceStatuses)
-                                                    {
-                                                        var statusExpr = new NetworkAttributeComparison(lifeCycleStatusAttr, Operator.Equal, status);
-                                                        var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                                        cfg.Traversability.Barriers = existing == null ? (Condition)statusExpr : new Or(existing, statusExpr);
-                                                    }
-                                                }
-
-                                                using (TraceManager traceManager = utilityNetwork.GetTraceManager())
-                                                {
-                                                    TraceArgument traceArgument = new TraceArgument(new List<Element>() { startElement });
-                                                    traceArgument.Configuration = cfg;
-                                                    Tracer tracer = traceManager.GetTracer<ConnectedTracer>();
-                                                    IReadOnlyList<Result> traceResults = tracer.Trace(traceArgument);
-                                                    var traceExtract = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(traceResults);
-                                                    await HighlightPathOnMapAsync(utilityNetwork, traceExtract.FeatureByGlobalId.Values);
-
-                                                    var traceFeatures = traceExtract.FeatureByGlobalId.Values;
-                                                    isolatorTraceHasSubringCB = traceFeatures.Any(p => p.AssetTypeName == "Subring Circuit Breaker");
-                                                    tracedIsolatorPoleNums = traceFeatures
-                                                        .Where(p => p.NetworkSourceName == "StructureJunction"
-                                                            && p.AssetGroupName == "Support Structure"
-                                                            && p.AssetTypeName == "HV Pole")
-                                                        .Select(p => p.GetString("POLENUM"))
-                                                        .Where(p => !string.IsNullOrEmpty(p))
-                                                        .Distinct()
-                                                        .ToList();
                                                 }
                                             }
                                             else
@@ -1738,21 +1631,17 @@ namespace CLP.ADMSUpdatePlugin
                                                         (poleAssociation.ToElement.AssetGroup.Name == "HV Switch" &&
                                                         poleAssociation.ToElement.AssetType.Name == "Switch"))
                                                     {
-                                                        var layer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == poleAssociation.ToElement.AssetGroup.Name);
-                                                        if (layer == null)
+                                                        if (FeatureQueryHelper.GetFeatureLayer(poleAssociation.ToElement.AssetGroup.Name) == null)
                                                         {
                                                             MessageBox.Show($"Fail to found layer {poleAssociation.ToElement.AssetGroup.Name}.");
                                                             return;
                                                         }
-                                                        var qf_tx = new QueryFilter { WhereClause = "GLOBALID = '{" + poleAssociation.ToElement.GlobalID + "}'" };
-                                                        using (var switchCursor = layer.GetFeatureClass().Search(qf_tx))
-                                                        {
-                                                            if (switchCursor.MoveNext())
-                                                            {
-                                                                var row = switchCursor.Current;
-                                                                txAttributes = row;
-                                                            }
-                                                        }
+                                                        txAttributes = FeatureQueryHelper.QueryRowByGlobalId(poleAssociation.ToElement.AssetGroup.Name, poleAssociation.ToElement.GlobalID);
+                                                        inPoleType = poleAssociation.ToElement.AssetType.Name == "Switch"
+                                                            ? "PMS"
+                                                            : poleAssociation.ToElement.AssetGroup.Name == "Transformer"
+                                                                ? "Transformer"
+                                                                : null;
                                                         break;
                                                     }
                                                 }
@@ -1766,41 +1655,69 @@ namespace CLP.ADMSUpdatePlugin
                                         first.Source = firstSwitchFeature;
                                         first.Pole = firstPoleFeature;
                                         first.IsSingleDevice = isSingleDevice;
-                                        if (firstSwitchFeature.AssetTypeName == "Isolator" && !isolatorTraceHasSubringCB)
+                                        if (firstSwitchFeature.AssetTypeName == "Isolator")
                                         {
-                                            first.ShowToSubstationFields = false;
-                                            first.ShowToPoleNoDropdown = true;
-                                            first.ToPoleNoOptions = tracedIsolatorPoleNums;
+                                            if (isolatorTraceHasSubringCB)
+                                            {
+                                                if (!string.IsNullOrEmpty(isolatorToSsName))
+                                                    first.TO_SS_NAME = isolatorToSsName;
+                                                if (!string.IsNullOrEmpty(isolatorToSsNum))
+                                                    first.TO_SS_NUM = isolatorToSsNum;
+                                                first.ShowToPoleNo = false;
+                                                first.ShowToPoleNoDropdown = false;
+                                            }
+                                            else
+                                            {
+                                                first.ShowToSubstationFields = false;
+                                                first.ShowToPoleNo = true;
+                                                first.ShowToPoleNoDropdown = true;
+                                                first.ToPoleNoOptions = tracedIsolatorPoleNums;
+                                            }
                                         }
                                         if (txAttributes != null)
                                         {
                                             first.FROM_SS_NUM = txAttributes["SSNUM"] != null ? $"{txAttributes["SSNUM"]}" : "";
                                             first.FROM_SS_NAME = txAttributes["SSNAME"] != null ? $"{txAttributes["SSNAME"]}" : "";
-                                            first.IsTxInPole = true;
+                                            first.IsTxOrPMSInPole = true;
+                                            first.InPoleType = inPoleType;
                                         }
-                                        if (tracedTransformer != null)
+                                        if (tracedTransformer != null && inPoleType == "Transformer")
                                         {
                                             first.FROM_SS_NUM = tracedTransformer.GetString("SSNUM");
                                             first.FROM_SS_NAME = tracedTransformer.GetString("SSNAME");
-                                            first.IsTxInPole = isTxInPole;
                                         }
-                                        if (firstSwitchFeature.AssetGroupName == "HV Fuse" && firstSwitchFeature.AssetTypeName == "Fuse" && !isTxInPole)
+                                        if (firstSwitchFeature.AssetGroupName == "HV Fuse" && firstSwitchFeature.AssetTypeName == "Fuse")
                                         {
-                                            first.ShowToPoleNo = true;
-                                            first.ShowToPoleNoDropdown = true;
                                             first.ToPoleNoOptions = tracedFusePoleNums;
+                                            if (isTxOrPMSInPole)
+                                            {
+                                                first.InPoleType = inPoleType;
+                                                first.IsTxOrPMSInPole = true;
+                                                if (inPoleType == "PMS")
+                                                {
+                                                    first.ShowToPoleNo = true;
+                                                    first.ShowToPoleNoDropdown = true;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                first.ShowToPoleNo = true;
+                                                first.ShowToPoleNoDropdown = true;
+                                            }
                                         }
-                                        if (!first.IsTxInPole && first.ASSET_TYPE == "Isolator") first.ShowFromSubstationFields = false;
+                                        if (!first.IsTxOrPMSInPole && first.ASSET_TYPE == "Isolator") first.ShowFromSubstationFields = false;
                                         this.PoleDevice = first;
                                         this.ShowSearchPanel = false;
                                         this.ShowPolePanel = true;
                                         break;
                                     }
-                                    else if (elementAssociation.FromElement.AssetGroup.Name == "Substation" 
-                                    && elementAssociation.ToElement.AssetType.Name == "Subring Circuit Breaker")
+                                    else if ((elementAssociation.FromElement.AssetGroup.Name == "Substation"
+                                    && elementAssociation.ToElement.AssetType.Name == "Subring Circuit Breaker") ||
+                                    (elementAssociation.FromElement.AssetGroup.Name == "Substation"
+                                    && elementAssociation.ToElement.AssetType.Name == "Switch"))
                                     {
-                                        var deviceLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == elementAssociation.ToElement.AssetGroup.Name);
-                                        var substationLayer = MapView.Active.Map.GetLayersAsFlattenedList().OfType<FeatureLayer>().FirstOrDefault(l => l.Name == elementAssociation.FromElement.AssetGroup.Name);
+                                        var deviceLayer = FeatureQueryHelper.GetFeatureLayer(elementAssociation.ToElement.AssetGroup.Name);
+                                        var substationLayer = FeatureQueryHelper.GetFeatureLayer(elementAssociation.FromElement.AssetGroup.Name);
                                         if (deviceLayer == null)
                                         {
                                             MessageBox.Show($"Fail to found layer {elementAssociation.ToElement.AssetGroup.Name}.");
@@ -1815,92 +1732,25 @@ namespace CLP.ADMSUpdatePlugin
                                         FeatureSnapshot firstSwitchFeature = null;
                                         FeatureSnapshot firstSubstationFeature = null;
 
-                                        var qf = new QueryFilter { WhereClause = "GLOBALID = '{" + elementAssociation.ToElement.GlobalID + "}'" };
-                                        using (var switchCursor = deviceLayer.GetFeatureClass().Search(qf))
-                                        {
-                                            if (switchCursor.MoveNext())
-                                            {
-                                                var row = switchCursor.Current;
-                                                var element = utilityNetwork.CreateElement(row);
-                                                var results = new SpatialSubgraphExtractor(utilityNetwork).Extract([element]);
-                                                var features = results.FeatureByGlobalId.Values;
-                                                firstSwitchFeature = features.FirstOrDefault(p => p.Element.GlobalID == elementAssociation.ToElement.GlobalID);
-                                            }
-                                        }
-
-                                        qf.WhereClause = "GLOBALID = '{" + elementAssociation.FromElement.GlobalID + "}'";
-                                        using (var substationCusor = substationLayer.GetFeatureClass().Search(qf))
-                                        {
-
-                                            if (substationCusor.MoveNext())
-                                            {
-                                                var row = substationCusor.Current;
-                                                var element = utilityNetwork.CreateElement(row);
-                                                var results = new SpatialSubgraphExtractor(utilityNetwork).Extract([element]);
-                                                var features = results.FeatureByGlobalId.Values;
-                                                firstSubstationFeature = features.FirstOrDefault(p => p.Element.GlobalID == elementAssociation.FromElement.GlobalID);
-                                            }
-                                        }
+                                        firstSwitchFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, elementAssociation.ToElement.AssetGroup.Name, elementAssociation.ToElement.GlobalID);
+                                        firstSubstationFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, elementAssociation.FromElement.AssetGroup.Name, elementAssociation.FromElement.GlobalID);
 
                                         List<string> tracedSubringPoleNums = new List<string>();
-                                        DomainNetwork subringDomainNetwork = utilityNetworkDefinition.GetDomainNetwork("Electric");
-                                        Tier subringSourceTier = subringDomainNetwork.GetTier("HV");
-                                        var subringTcfg = startElement.AssetType.GetTerminalConfiguration();
-                                        startElement.Terminal = subringTcfg.Terminals.FirstOrDefault(p => p.Name == "CB:Line Side");
-                                        TraceConfiguration subringCfg = subringSourceTier.GetTraceConfiguration();
-                                        subringCfg.Propagators = new List<Propagator>();
-                                        subringCfg.Filter.Scope = TraversabilityScope.JunctionsAndEdges;
-                                        subringCfg.Traversability.Barriers = null;
-
-                                        var subringCatSwitch = utilityNetworkDefinition
-                                            .GetAvailableCategories()
-                                            .FirstOrDefault(c => c.Equals("E:Switch", StringComparison.OrdinalIgnoreCase));
-                                        if (subringCatSwitch != null)
-                                        {
-                                            subringCfg.Traversability.Barriers = (Condition)new CategoryComparison(CategoryOperator.IsEqual, subringCatSwitch);
-                                        }
-
-                                        var subringAssetGroupAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "Assetgroup", "Asset group", "AssetGroup");
-                                        if (subringAssetGroupAttr != null)
-                                        {
-                                            foreach (var assetGroup in new List<int> { 61, 51 })
-                                            {
-                                                var assetGroupExpr = new NetworkAttributeComparison(subringAssetGroupAttr, Operator.Equal, assetGroup);
-                                                var existing = subringCfg.Traversability.Barriers as ConditionalExpression;
-                                                subringCfg.Traversability.Barriers = existing == null ? (Condition)assetGroupExpr : new Or(existing, assetGroupExpr);
-                                            }
-                                        }
-
-                                        var subringLifeCycleStatusAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "LifeCycleStatus", "Life Cycle Status");
-                                        if (subringLifeCycleStatusAttr != null)
-                                        {
-                                            var notInServiceStatuses = new List<int> { 0, 1, 3, 4 };
-                                            foreach (var status in notInServiceStatuses)
-                                            {
-                                                var statusExpr = new NetworkAttributeComparison(subringLifeCycleStatusAttr, Operator.Equal, status);
-                                                var existing = subringCfg.Traversability.Barriers as ConditionalExpression;
-                                                subringCfg.Traversability.Barriers = existing == null ? (Condition)statusExpr : new Or(existing, statusExpr);
-                                            }
-                                        }
-
-                                        using (TraceManager traceManager = utilityNetwork.GetTraceManager())
-                                        {
-                                            TraceArgument traceArgument = new TraceArgument(new List<Element>() { startElement });
-                                            traceArgument.Configuration = subringCfg;
-                                            Tracer tracer = traceManager.GetTracer<ConnectedTracer>();
-                                            IReadOnlyList<Result> traceResults = tracer.Trace(traceArgument);
-                                            var traceExtract = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(traceResults);
-                                            await HighlightPathOnMapAsync(utilityNetwork, traceExtract.FeatureByGlobalId.Values);
-
-                                            tracedSubringPoleNums = traceExtract.FeatureByGlobalId.Values
-                                                .Where(p => p.NetworkSourceName == "StructureJunction"
-                                                    && p.AssetGroupName == "Support Structure"
-                                                    && p.AssetTypeName == "HV Pole")
-                                                .Select(p => p.GetString("POLENUM"))
-                                                .Where(p => !string.IsNullOrEmpty(p))
-                                                .Distinct()
-                                                .ToList();
-                                        }
+                                        LoadingStatusText = "Running trace...";
+                                        var subringTraceFeatures = await UtilityNetworkTraceRunner.RunConnectedTraceAsync(
+                                            utilityNetwork,
+                                            utilityNetworkDefinition,
+                                            startElement,
+                                            new TraceRunRequest { TierName = "HV", TerminalName = "CB:Line Side", Preset = TraceBarrierPreset.HvIsolatorLike },
+                                            features => HighlightPathOnMapAsync(utilityNetwork, features));
+                                        tracedSubringPoleNums = subringTraceFeatures
+                                            .Where(p => p.NetworkSourceName == "StructureJunction"
+                                                && p.AssetGroupName == "Support Structure"
+                                                && p.AssetTypeName == "HV Pole")
+                                            .Select(p => p.GetString("POLENUM"))
+                                            .Where(p => !string.IsNullOrEmpty(p))
+                                            .Distinct()
+                                            .ToList();
 
                                         first = new Pole_Model(firstSwitchFeature, utilityNetwork);
                                         first.FROM_SS_NAME = firstSubstationFeature.Attributes["SSNAME"]?.ToString();
@@ -1909,6 +1759,7 @@ namespace CLP.ADMSUpdatePlugin
                                         first.Source = firstSwitchFeature;
                                         first.Pole = firstSubstationFeature;
                                         first.ToPoleNoOptions = tracedSubringPoleNums;
+                                        
                                         this.PoleDevice = first;
                                         this.ShowSearchPanel = false;
                                         this.ShowPolePanel = true;
@@ -1944,148 +1795,105 @@ namespace CLP.ADMSUpdatePlugin
                                 }
                                 if (assetGroup == "LV Fuse" && assetType == "Source Fuse")
                                 {
-                                    DomainNetwork domainNetwork = utilityNetworkDefinition.GetDomainNetwork("Electric");
-                                    Tier sourceTier = domainNetwork.GetTier("LV");
                                     LoggerHelper.Info($"Trace start at: {DateTime.Now}");
-                                    TraceConfiguration cfg = sourceTier.GetTraceConfiguration();
-                                    cfg.Propagators = new List<Propagator>();
-                                    var catSub = utilityNetworkDefinition
-                                        .GetAvailableCategories()
-                                        .FirstOrDefault(c => c.Equals("Subnetwork Controller", StringComparison.OrdinalIgnoreCase));
-                                    cfg.Filter.Scope = TraversabilityScope.JunctionsAndEdges;
-                                    if (catSub != null)
+                                    LoadingStatusText = "Running trace...";
+                                    var features = await UtilityNetworkTraceRunner.RunConnectedTraceAsync(
+                                        utilityNetwork,
+                                        utilityNetworkDefinition,
+                                        startElement,
+                                        new TraceRunRequest { TierName = "LV", TerminalName = "Source", Preset = TraceBarrierPreset.LvSourceFuse },
+                                        traceFeatures => HighlightPathOnMapAsync(utilityNetwork, traceFeatures));
+                                    LoggerHelper.Info($"Trace end at: {DateTime.Now}");
+
+                                    var transfomers = features.Where(p => p.AssetGroupName == "Transformer");
+
+                                    if (transfomers.Count() == 0)
                                     {
-                                        var catExpr = new CategoryComparison(CategoryOperator.IsEqual, catSub);
-                                        var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                        cfg.Traversability.Barriers = existing == null ? (Condition)catExpr : new Or(existing, catExpr);
+                                        MessageBox.Show("The process cannot be completed because there are no Transformer ", "Invalid Selection", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                                        return;
                                     }
 
-                                    // condition_barriers="Category IS_EQUAL_TO SPECIFIC_VALUE E:Switch OR;'Asset group' IS_EQUAL_TO SPECIFIC_VALUE 51 OR;'Life Cycle Status' IS_EQUAL_TO SPECIFIC_VALUE 3 OR;'Life Cycle Status' IS_EQUAL_TO SPECIFIC_VALUE 4 OR;'Life Cycle Status' IS_EQUAL_TO SPECIFIC_VALUE 0 #",
-                                    cfg.Traversability.Barriers = TraceCfgHelpers.RemoveAttrFromBarriers(cfg.Traversability.Barriers, new string[] { "NormalOperatingStatus", "Life Cycle Status" });
-                                    var lifeCycleStatuses = new List<int> { 0, 4, 3 }; // 需要的状态值 0, 1, 3
-                                    foreach (var status in lifeCycleStatuses)
+                                    var sourceFuseFeatures = features
+                                        .Where(p => p.AssetGroupName == "LV Fuse" && p.AssetTypeName == "Source Fuse")
+                                        .ToList();
+                                    var selectedSourceFuseFeature = sourceFuseFeatures.FirstOrDefault(p => p.Element.GlobalID == startElement.GlobalID);
+                                    if (selectedSourceFuseFeature == null)
                                     {
-                                        var lifeCycleStatusAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "LifeCycleStatus", "Life Cycle Status");
-                                        if (lifeCycleStatusAttr != null)
-                                        {
-                                            var statusExpr = new NetworkAttributeComparison(lifeCycleStatusAttr, Operator.Equal, status);
-                                            var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                            cfg.Traversability.Barriers = existing == null ? (Condition)statusExpr : new Or(existing, statusExpr);
-                                        }
+                                        MessageBox.Show("The process cannot be completed because the selected Source Fuse is not in the trace result.", "Invalid Selection", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                                        return;
                                     }
-                                    var assetGroupAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "Assetgroup", "Asset group");
-                                    if (assetGroupAttr != null)
+
+                                    var localSupplyFeatures = features
+                                        .Where(p => p.AssetGroupName == "LV Service Point" && (p.AssetTypeName == "Local Supply" || p.AssetTypeName == "Local Supply Point"))
+                                        .ToList();
+                                    var transformer = transfomers.FirstOrDefault();
+                                    string txNo = transformer?.GetString("TX_NO");
+                                    string ssName = transformer?.GetString("SSNAME");
+                                    string ssNum = transformer?.GetString("SSNUM");
+                                    string transformerSSName = ssName;
+                                    string transformerSSNum = ssNum;
+
+                                    LoadingStatusText = "Getting associations...";
+                                    var transformerAssociations = utilityNetwork.TraverseAssociations(transfomers.Select(p => p.Element), new TraverseAssociationsDescription(TraversalDirection.Ascending));
+                                    bool isPoleSourceFuse = transformerAssociations.Associations.Any(p =>
+                                        p.FromElement.AssetGroup.Name == "Support Structure"
+                                        && (p.FromElement.AssetType.Name == "HV Pole" || p.FromElement.AssetType.Name == "LV Pole"));
+                                    LoggerHelper.Info($"Get Association Info start at: {DateTime.Now}");
+                                    foreach (var transformerAssociation in transformerAssociations.Associations)
                                     {
-                                        var assetGroupExpr = new NetworkAttributeComparison(assetGroupAttr, Operator.Equal, 51);
-                                        var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                        cfg.Traversability.Barriers = existing == null ? (Condition)assetGroupExpr : new Or(existing, assetGroupExpr);
-                                    }
-                                    using (TraceManager traceManager = utilityNetwork.GetTraceManager())
-                                    {
-                                        if (assetGroup == "LV Fuse" && assetType == "Source Fuse")
+                                        if (!isPoleSourceFuse && transformerAssociation.FromElement.AssetGroup.Name == "Substation"
+                                        && transformerAssociation.ToElement.AssetGroup.Name == "Transformer")
                                         {
-                                            var tcfg = startElement.AssetType.GetTerminalConfiguration();
-                                            startElement.Terminal = tcfg.Terminals.FirstOrDefault(p => p.Name == "Source");
-                                        }
-
-                                        TraceArgument traceArgument = new TraceArgument(new List<Element>() { this.SelectionElement });
-                                        traceArgument.Configuration = cfg;
-                                        Tracer tracer = traceManager.GetTracer<ConnectedTracer>();
-                                        IReadOnlyList<Result> traceResults = tracer.Trace(traceArgument);
-                                        var results = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(traceResults);
-                                        LoggerHelper.Info($"Trace end at: {DateTime.Now}");
-                                        await HighlightPathOnMapAsync(utilityNetwork, results.FeatureByGlobalId.Values);
-
-                                        var features = results.FeatureByGlobalId.Values;
-                                        var transfomers = features.Where(p => p.AssetGroupName == "Transformer");
-
-                                        if (transfomers.Count() == 0)
-                                        {
-                                            MessageBox.Show("The process cannot be completed because there are no Transformer ", "Invalid Selection", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                                            return;
-                                        }
-
-                                        var sourceFuseFeatures = features
-                                            .Where(p => p.AssetGroupName == "LV Fuse" && p.AssetTypeName == "Source Fuse")
-                                            .ToList();
-                                        var selectedSourceFuseFeature = sourceFuseFeatures.FirstOrDefault(p => p.Element.GlobalID == startElement.GlobalID);
-                                        if (selectedSourceFuseFeature == null)
-                                        {
-                                            MessageBox.Show("The process cannot be completed because the selected Source Fuse is not in the trace result.", "Invalid Selection", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                                            return;
-                                        }
-
-                                        var localSupplyFeatures = features
-                                            .Where(p => p.AssetGroupName == "LV Service Point" && (p.AssetTypeName == "Local Supply" || p.AssetTypeName == "Local Supply Point"))
-                                            .ToList();
-                                        var transformer = transfomers.FirstOrDefault();
-                                        string txNo = transformer?.GetString("TX_NO");
-                                        string ssName = transformer?.GetString("SSNAME");
-                                        string ssNum = transformer?.GetString("SSNUM");
-                                        string transformerSSName = ssName;
-                                        string transformerSSNum = ssNum;
-
-                                        var transformerAssociations = utilityNetwork.TraverseAssociations(transfomers.Select(p => p.Element), new TraverseAssociationsDescription(TraversalDirection.Ascending));
-                                        bool isPoleSourceFuse = transformerAssociations.Associations.Any(p =>
-                                            p.FromElement.AssetGroup.Name == "Support Structure"
-                                            && (p.FromElement.AssetType.Name == "HV Pole" || p.FromElement.AssetType.Name == "LV Pole"));
-                                        LoggerHelper.Info($"Get Association Info start at: {DateTime.Now}");
-                                        foreach (var transformerAssociation in transformerAssociations.Associations)
-                                        {
-                                            if (!isPoleSourceFuse && transformerAssociation.FromElement.AssetGroup.Name == "Substation"
-                                            && transformerAssociation.ToElement.AssetGroup.Name == "Transformer")
+                                            using (var substationTable = utilityNetwork.GetTable(transformerAssociation.FromElement.NetworkSource))
                                             {
-                                                using (var substationTable = utilityNetwork.GetTable(transformerAssociation.FromElement.NetworkSource))
+                                                var substationFields = substationTable.GetDefinition().GetFields().Select(f => f.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                                                using (var cursor = substationTable.Search(new QueryFilter() { ObjectIDs = new List<long>() { transformerAssociation.FromElement.ObjectID } }, false))
                                                 {
-                                                    var substationFields = substationTable.GetDefinition().GetFields().Select(f => f.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                                                    using (var cursor = substationTable.Search(new QueryFilter() { ObjectIDs = new List<long>() { transformerAssociation.FromElement.ObjectID } }, false))
+                                                    if (cursor.MoveNext())
                                                     {
-                                                        if (cursor.MoveNext())
+                                                        using (var row = cursor.Current)
                                                         {
-                                                            using (var row = cursor.Current)
+                                                            if (substationFields.Contains("SSNUM"))
                                                             {
-                                                                if (substationFields.Contains("SSNUM"))
-                                                                {
-                                                                    ssNum = row["SSNUM"]?.ToString();
-                                                                }
-                                                                if (substationFields.Contains("SSNAME"))
-                                                                {
-                                                                    ssName = row["SSNAME"]?.ToString();
-                                                                }
+                                                                ssNum = row["SSNUM"]?.ToString();
+                                                            }
+                                                            if (substationFields.Contains("SSNAME"))
+                                                            {
+                                                                ssName = row["SSNAME"]?.ToString();
                                                             }
                                                         }
                                                     }
                                                 }
-                                                break;
                                             }
-                                            else if (transformerAssociation.FromElement.AssetGroup.Name == "Support Structure"
-                                            && (transformerAssociation.FromElement.AssetType.Name == "HV Pole" || transformerAssociation.FromElement.AssetType.Name == "LV Pole")
-                                            && transformerAssociation.ToElement.AssetGroup.Name == "Transformer")
-                                            {
-                                                isPoleSourceFuse = true;
-                                                ssName = transformerSSName;
-                                                ssNum = transformerSSNum;
-                                            }
+                                            break;
                                         }
-                                        LoggerHelper.Info($"Get Association Info end at: {DateTime.Now}");
-                                        LVFeature_Model CreateLVFeatureModel(FeatureSnapshot feature)
+                                        else if (transformerAssociation.FromElement.AssetGroup.Name == "Support Structure"
+                                        && (transformerAssociation.FromElement.AssetType.Name == "HV Pole" || transformerAssociation.FromElement.AssetType.Name == "LV Pole")
+                                        && transformerAssociation.ToElement.AssetGroup.Name == "Transformer")
                                         {
-                                            var model = new LVFeature_Model(feature, utilityNetwork);
-                                            model.TX_NO = txNo;
-                                            model.SS_NAME = ssName;
-                                            model.SS_NUM = ssNum;
-                                            model.IsPoleSourceFuse = isPoleSourceFuse;
-                                            return model;
+                                            isPoleSourceFuse = true;
+                                            ssName = transformerSSName;
+                                            ssNum = transformerSSNum;
                                         }
-
-                                        var sourceFuseModels = sourceFuseFeatures.Select(CreateLVFeatureModel).ToList();
-                                        var selectedSourceFuse = sourceFuseModels.FirstOrDefault(p => p.Source.Element.GlobalID == startElement.GlobalID);
-                                        var localSupplyModels = localSupplyFeatures.Select(CreateLVFeatureModel).ToList();
-
-                                        this.LVFeature = selectedSourceFuse;
-                                        this.LVFeatureContainer = new LVFeatureContainer_Model(sourceFuseModels, localSupplyModels, selectedSourceFuse);
-                                        this.ShowLVSourceFusePanel = true;
                                     }
+                                    LoggerHelper.Info($"Get Association Info end at: {DateTime.Now}");
+                                    LVFeature_Model CreateLVFeatureModel(FeatureSnapshot feature)
+                                    {
+                                        var model = new LVFeature_Model(feature, utilityNetwork);
+                                        model.TX_NO = txNo;
+                                        model.SS_NAME = ssName;
+                                        model.SS_NUM = ssNum;
+                                        model.IsPoleSourceFuse = isPoleSourceFuse;
+                                        return model;
+                                    }
+
+                                    var sourceFuseModels = sourceFuseFeatures.Select(CreateLVFeatureModel).ToList();
+                                    var selectedSourceFuse = sourceFuseModels.FirstOrDefault(p => p.Source.Element.GlobalID == startElement.GlobalID);
+                                    var localSupplyModels = localSupplyFeatures.Select(CreateLVFeatureModel).ToList();
+
+                                    this.LVFeature = selectedSourceFuse;
+                                    this.LVFeatureContainer = new LVFeatureContainer_Model(sourceFuseModels, localSupplyModels, selectedSourceFuse);
+                                    this.ShowLVSourceFusePanel = true;
 
                                 }
                                 else if (assetGroup == "LV Service Point" && assetType == "Supply Point")
@@ -2103,6 +1911,7 @@ namespace CLP.ADMSUpdatePlugin
                                 }
                                 else if (assetGroup == "LV Fuse" && assetType == "Fuse")
                                 {
+                                    LoadingStatusText = "Getting associations...";
                                     var ascendingAssociations = utilityNetwork.TraverseAssociations(new List<Element>() { startElement }, new TraverseAssociationsDescription(TraversalDirection.Ascending));
                                     var descendingAssociations = utilityNetwork.TraverseAssociations(new List<Element>() { startElement }, new TraverseAssociationsDescription(TraversalDirection.Descending));
                                     var pillarCircuitBoxElement = ascendingAssociations.Associations
@@ -2122,54 +1931,34 @@ namespace CLP.ADMSUpdatePlugin
                                             return;
                                         }
 
-                                        DomainNetwork domainNetwork = utilityNetworkDefinition.GetDomainNetwork("Electric");
-                                        Tier sourceTier = domainNetwork.GetTier("LV");
                                         LoggerHelper.Info($"Trace start at: {DateTime.Now}");
-                                        TraceConfiguration cfg = sourceTier.GetTraceConfiguration();
-                                        cfg.Propagators = new List<Propagator>();
-                                        var catSwitchFuse = utilityNetworkDefinition
-                                            .GetAvailableCategories()
-                                            .FirstOrDefault(c => c.Equals("E:Switch - Fuse", StringComparison.OrdinalIgnoreCase));
-                                        cfg.Filter.Scope = TraversabilityScope.JunctionsAndEdges;
-                                        if (catSwitchFuse != null)
+                                        LoadingStatusText = "Running trace...";
+                                        var features = await UtilityNetworkTraceRunner.RunConnectedTraceAsync(
+                                            utilityNetwork,
+                                            utilityNetworkDefinition,
+                                            startElement,
+                                            new TraceRunRequest { TierName = "LV", TerminalName = "Node 1", Preset = TraceBarrierPreset.LvPillarFuse },
+                                            traceFeatures => HighlightPathOnMapAsync(utilityNetwork, traceFeatures));
+                                        LoggerHelper.Info($"Trace end at: {DateTime.Now}");
+
+                                        var pillarFuseFeatures = features
+                                            .Where(p => p.AssetGroupName == "LV Fuse" && p.AssetTypeName == "Fuse")
+                                            .ToList();
+
+                                        var pillarCircuitBox = new LVFeature_Model(pillarCircuitBoxFeature, utilityNetwork);
+                                        LVFeature_Model CreatePillarFuseModel(FeatureSnapshot feature)
                                         {
-                                            var catExpr = new CategoryComparison(CategoryOperator.IsEqual, catSwitchFuse);
-                                            cfg.Traversability.Barriers = (Condition)catExpr;
+                                            var model = new LVFeature_Model(feature, utilityNetwork);
+                                            model.PR_NO = pillarCircuitBox.PR_NO;
+                                            model.PR_NAME = pillarCircuitBox.PR_NAME;
+                                            return model;
                                         }
 
-                                        var tcfg = startElement.AssetType.GetTerminalConfiguration();
-                                        startElement.Terminal = tcfg.Terminals.FirstOrDefault(p => p.Name == "Node 1");
-
-                                        using (TraceManager traceManager = utilityNetwork.GetTraceManager())
-                                        {
-                                            TraceArgument traceArgument = new TraceArgument(new List<Element>() { startElement });
-                                            traceArgument.Configuration = cfg;
-                                            Tracer tracer = traceManager.GetTracer<ConnectedTracer>();
-                                            IReadOnlyList<Result> traceResults = tracer.Trace(traceArgument);
-                                            var results = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(traceResults);
-                                            LoggerHelper.Info($"Trace end at: {DateTime.Now}");
-                                            await HighlightPathOnMapAsync(utilityNetwork, results.FeatureByGlobalId.Values);
-
-                                            var features = results.FeatureByGlobalId.Values;
-                                            var pillarFuseFeatures = features
-                                                .Where(p => p.AssetGroupName == "LV Fuse" && p.AssetTypeName == "Fuse")
-                                                .ToList();
-
-                                            var pillarCircuitBox = new LVFeature_Model(pillarCircuitBoxFeature, utilityNetwork);
-                                            LVFeature_Model CreatePillarFuseModel(FeatureSnapshot feature)
-                                            {
-                                                var model = new LVFeature_Model(feature, utilityNetwork);
-                                                model.PR_NO = pillarCircuitBox.PR_NO;
-                                                model.PR_NAME = pillarCircuitBox.PR_NAME;
-                                                return model;
-                                            }
-
-                                            var pillarFuseModels = pillarFuseFeatures.Select(CreatePillarFuseModel).ToList();
-                                            var selectedPillarFuse = pillarFuseModels.FirstOrDefault(p => p.Source.Element.GlobalID == startElement.GlobalID);
-                                            this.LVFeature = selectedPillarFuse;
-                                            this.LVFeatureContainer = new LVFeatureContainer_Model(null, null, null, pillarFuseModels, selectedPillarFuse, pillarCircuitBox);
-                                            this.ShowLVPillarFusePanel = true;
-                                        }
+                                        var pillarFuseModels = pillarFuseFeatures.Select(CreatePillarFuseModel).ToList();
+                                        var selectedPillarFuse = pillarFuseModels.FirstOrDefault(p => p.Source.Element.GlobalID == startElement.GlobalID);
+                                        this.LVFeature = selectedPillarFuse;
+                                        this.LVFeatureContainer = new LVFeatureContainer_Model(null, null, null, pillarFuseModels, selectedPillarFuse, pillarCircuitBox);
+                                        this.ShowLVPillarFusePanel = true;
                                     }
                                     else if (poleElement != null) 
                                     {
@@ -2187,161 +1976,92 @@ namespace CLP.ADMSUpdatePlugin
                                             return;
                                         }
 
-                                        DomainNetwork domainNetwork = utilityNetworkDefinition.GetDomainNetwork("Electric");
-                                        Tier sourceTier = domainNetwork.GetTier("LV");
-                                        var tcfg = startElement.AssetType.GetTerminalConfiguration();
-                                        startElement.Terminal = tcfg.Terminals.FirstOrDefault(p => p.Name == "Node 1");
-                                        TraceConfiguration cfg = sourceTier.GetTraceConfiguration();
-                                        cfg.Propagators = new List<Propagator>();
-                                        cfg.Filter.Scope = TraversabilityScope.JunctionsAndEdges;
+                                        LoggerHelper.Info($"Trace start at: {DateTime.Now}");
+                                        LoadingStatusText = "Running trace...";
+                                        var motherSupplyTraceFeatures = await UtilityNetworkTraceRunner.RunConnectedTraceAsync(
+                                            utilityNetwork,
+                                            utilityNetworkDefinition,
+                                            startElement,
+                                            new TraceRunRequest { TierName = "LV", TerminalName = "Node 1", Preset = TraceBarrierPreset.LvMotherSupplyFirst },
+                                            traceFeatures => HighlightPathOnMapAsync(utilityNetwork, traceFeatures));
+                                        LoggerHelper.Info($"Trace end at: {DateTime.Now}");
 
-                                        var catSub = utilityNetworkDefinition
-                                            .GetAvailableCategories()
-                                            .FirstOrDefault(c => c.Equals("Subnetwork Controller", StringComparison.OrdinalIgnoreCase));
-                                        if (catSub != null)
+                                        var sourceFuseFeature = motherSupplyTraceFeatures.FirstOrDefault(p =>
+                                            p.AssetGroupName == "LV Fuse"
+                                            && p.AssetTypeName == "Source Fuse"
+                                            && p.NormalOperatingStatus == NormalOperatingStatus.Closed);
+                                        if (sourceFuseFeature == null)
                                         {
-                                            cfg.Traversability.Barriers = (Condition)new CategoryComparison(CategoryOperator.IsEqual, catSub);
+                                            return;
                                         }
 
-                                        var normalOperatingStatusAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "NormalOperatingStatus", "Normal Operating Status");
-                                        if (normalOperatingStatusAttr != null)
+                                        LoadingStatusText = "Running trace...";
+                                        var sourceFuseTraceFeatures = await UtilityNetworkTraceRunner.RunConnectedTraceAsync(
+                                            utilityNetwork,
+                                            utilityNetworkDefinition,
+                                            sourceFuseFeature.Element,
+                                            new TraceRunRequest { TierName = "LV", TerminalName = "Source", Preset = TraceBarrierPreset.LvSourceFuse },
+                                            traceFeatures => HighlightPathOnMapAsync(utilityNetwork, traceFeatures));
+                                        var transformer = sourceFuseTraceFeatures.FirstOrDefault(p => p.AssetGroupName == "Transformer");
+                                        if (transformer == null)
                                         {
-                                            var openExpr = new NetworkAttributeComparison(normalOperatingStatusAttr, Operator.Equal, (int)NormalOperatingStatus.Open);
-                                            var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                            cfg.Traversability.Barriers = existing == null ? (Condition)openExpr : new Or(existing, openExpr);
+                                            return;
                                         }
 
-                                        var lifeCycleStatusAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "LifeCycleStatus", "Life Cycle Status");
-                                        if (lifeCycleStatusAttr != null)
+                                        string txNo = transformer.GetString("TX_NO");
+                                        string ssName = transformer.GetString("SSNAME");
+                                        string ssNum = transformer.GetString("SSNUM");
+                                        if (string.IsNullOrEmpty(ssName) || string.IsNullOrEmpty(ssNum))
                                         {
-                                            var notInServiceStatuses = new List<int> { 0, 1, 3, 4 };
-                                            foreach (var status in notInServiceStatuses)
+                                            LoadingStatusText = "Getting associations...";
+                                            var transformerAssociations = utilityNetwork.TraverseAssociations(new List<Element>() { transformer.Element }, new TraverseAssociationsDescription(TraversalDirection.Ascending));
+                                            foreach (var transformerAssociation in transformerAssociations.Associations)
                                             {
-                                                var statusExpr = new NetworkAttributeComparison(lifeCycleStatusAttr, Operator.Equal, status);
-                                                var existing = cfg.Traversability.Barriers as ConditionalExpression;
-                                                cfg.Traversability.Barriers = existing == null ? (Condition)statusExpr : new Or(existing, statusExpr);
-                                            }
-                                        }
-
-                                        using (TraceManager traceManager = utilityNetwork.GetTraceManager())
-                                        {
-                                            TraceArgument traceArgument = new TraceArgument(new List<Element>() { startElement });
-                                            traceArgument.Configuration = cfg;
-                                            Tracer tracer = traceManager.GetTracer<ConnectedTracer>();
-                                            IReadOnlyList<Result> traceResults = tracer.Trace(traceArgument);
-                                            var results = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(traceResults);
-                                            LoggerHelper.Info($"Trace end at: {DateTime.Now}");
-                                            await HighlightPathOnMapAsync(utilityNetwork, results.FeatureByGlobalId.Values);
-
-                                            var sourceFuseFeature = results.FeatureByGlobalId.Values.FirstOrDefault(p =>
-                                                p.AssetGroupName == "LV Fuse"
-                                                && p.AssetTypeName == "Source Fuse"
-                                                && p.NormalOperatingStatus == NormalOperatingStatus.Closed);
-                                            if (sourceFuseFeature == null)
-                                            {
-                                                return;
-                                            }
-
-                                            var sourceFuseElement = sourceFuseFeature.Element;
-                                            tcfg = sourceFuseElement.AssetType.GetTerminalConfiguration();
-                                            sourceFuseElement.Terminal = tcfg.Terminals.FirstOrDefault(p => p.Name == "Source");
-
-                                            TraceConfiguration sourceFuseCfg = sourceTier.GetTraceConfiguration();
-                                            sourceFuseCfg.Propagators = new List<Propagator>();
-                                            sourceFuseCfg.Filter.Scope = TraversabilityScope.JunctionsAndEdges;
-                                            var sourceFuseCatSub = utilityNetworkDefinition
-                                                .GetAvailableCategories()
-                                                .FirstOrDefault(c => c.Equals("Subnetwork Controller", StringComparison.OrdinalIgnoreCase));
-                                            if (sourceFuseCatSub != null)
-                                            {
-                                                var catExpr = new CategoryComparison(CategoryOperator.IsEqual, sourceFuseCatSub);
-                                                var existing = sourceFuseCfg.Traversability.Barriers as ConditionalExpression;
-                                                sourceFuseCfg.Traversability.Barriers = existing == null ? (Condition)catExpr : new Or(existing, catExpr);
-                                            }
-
-                                            sourceFuseCfg.Traversability.Barriers = TraceCfgHelpers.RemoveAttrFromBarriers(sourceFuseCfg.Traversability.Barriers, new string[] { "NormalOperatingStatus", "Life Cycle Status" });
-                                            var lifeCycleStatuses = new List<int> { 0, 4, 3 };
-                                            foreach (var status in lifeCycleStatuses)
-                                            {
-                                                if (lifeCycleStatusAttr != null)
+                                                if (transformerAssociation.FromElement.AssetGroup.Name == "Substation")
                                                 {
-                                                    var statusExpr = new NetworkAttributeComparison(lifeCycleStatusAttr, Operator.Equal, status);
-                                                    var existing = sourceFuseCfg.Traversability.Barriers as ConditionalExpression;
-                                                    sourceFuseCfg.Traversability.Barriers = existing == null ? (Condition)statusExpr : new Or(existing, statusExpr);
-                                                }
-                                            }
-                                            var assetGroupAttr = TraceCfgHelpers.FindNetworkAttribute(utilityNetworkDefinition, "Assetgroup", "Asset group");
-                                            if (assetGroupAttr != null)
-                                            {
-                                                var assetGroupExpr = new NetworkAttributeComparison(assetGroupAttr, Operator.Equal, 51);
-                                                var existing = sourceFuseCfg.Traversability.Barriers as ConditionalExpression;
-                                                sourceFuseCfg.Traversability.Barriers = existing == null ? (Condition)assetGroupExpr : new Or(existing, assetGroupExpr);
-                                            }
-
-                                            TraceArgument sourceTraceArgument = new TraceArgument(new List<Element>() { sourceFuseElement });
-                                            sourceTraceArgument.Configuration = sourceFuseCfg;
-                                            IReadOnlyList<Result> sourceTraceResults = tracer.Trace(sourceTraceArgument);
-                                            var sourceTraceExtract = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(sourceTraceResults);
-                                            await HighlightPathOnMapAsync(utilityNetwork, sourceTraceExtract.FeatureByGlobalId.Values);
-                                            var transformer = sourceTraceExtract.FeatureByGlobalId.Values.FirstOrDefault(p => p.AssetGroupName == "Transformer");
-                                            if (transformer == null)
-                                            {
-                                                return;
-                                            }
-
-                                            string txNo = transformer.GetString("TX_NO");
-                                            string ssName = transformer.GetString("SSNAME");
-                                            string ssNum = transformer.GetString("SSNUM");
-                                            if (string.IsNullOrEmpty(ssName) || string.IsNullOrEmpty(ssNum))
-                                            {
-                                                var transformerAssociations = utilityNetwork.TraverseAssociations(new List<Element>() { transformer.Element }, new TraverseAssociationsDescription(TraversalDirection.Ascending));
-                                                foreach (var transformerAssociation in transformerAssociations.Associations)
-                                                {
-                                                    if (transformerAssociation.FromElement.AssetGroup.Name == "Substation")
+                                                    using (var substationTable = utilityNetwork.GetTable(transformerAssociation.FromElement.NetworkSource))
                                                     {
-                                                        using (var substationTable = utilityNetwork.GetTable(transformerAssociation.FromElement.NetworkSource))
+                                                        var substationFields = substationTable.GetDefinition().GetFields().Select(f => f.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                                                        using (var cursor = substationTable.Search(new QueryFilter() { ObjectIDs = new List<long>() { transformerAssociation.FromElement.ObjectID } }, false))
                                                         {
-                                                            var substationFields = substationTable.GetDefinition().GetFields().Select(f => f.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                                                            using (var cursor = substationTable.Search(new QueryFilter() { ObjectIDs = new List<long>() { transformerAssociation.FromElement.ObjectID } }, false))
+                                                            if (cursor.MoveNext())
                                                             {
-                                                                if (cursor.MoveNext())
+                                                                using (var row = cursor.Current)
                                                                 {
-                                                                    using (var row = cursor.Current)
+                                                                    if (string.IsNullOrEmpty(ssNum) && substationFields.Contains("SSNUM"))
                                                                     {
-                                                                        if (string.IsNullOrEmpty(ssNum) && substationFields.Contains("SSNUM"))
-                                                                        {
-                                                                            ssNum = row["SSNUM"]?.ToString();
-                                                                        }
-                                                                        if (string.IsNullOrEmpty(ssName) && substationFields.Contains("SSNAME"))
-                                                                        {
-                                                                            ssName = row["SSNAME"]?.ToString();
-                                                                        }
+                                                                        ssNum = row["SSNUM"]?.ToString();
+                                                                    }
+                                                                    if (string.IsNullOrEmpty(ssName) && substationFields.Contains("SSNAME"))
+                                                                    {
+                                                                        ssName = row["SSNAME"]?.ToString();
                                                                     }
                                                                 }
                                                             }
                                                         }
-                                                        break;
                                                     }
+                                                    break;
                                                 }
                                             }
-
-                                            var motherSupplyPoint = new LVFeature_Model(selectedFuseFeature, utilityNetwork)
-                                            {
-                                                POLENUM = poleFeature.GetString("POLENUM"),
-                                                CCT_NO = sourceFuseFeature.GetString("CCT_NO"),
-                                                TX_NO = txNo,
-                                                SS_NAME = ssName,
-                                                SS_NUM = ssNum,
-                                                IsMotherSupplyPoint = true,
-                                            };
-
-                                            this.LVFeature = motherSupplyPoint;
-                                            this.ShowLVMotherSupplyPointPanel = true;
                                         }
+
+                                        var motherSupplyPoint = new LVFeature_Model(selectedFuseFeature, utilityNetwork)
+                                        {
+                                            POLENUM = poleFeature.GetString("POLENUM"),
+                                            CCT_NO = sourceFuseFeature.GetString("CCT_NO"),
+                                            TX_NO = txNo,
+                                            SS_NAME = ssName,
+                                            SS_NUM = ssNum,
+                                            IsMotherSupplyPoint = true,
+                                        };
+
+                                        this.LVFeature = motherSupplyPoint;
+                                        this.ShowLVMotherSupplyPointPanel = true;
                                     }
                                 }
                                 else if (assetGroup == "LV Switch" && assetType == "Switch")
                                 {
+                                    LoadingStatusText = "Getting associations...";
                                     var ascendingAssociations = utilityNetwork.TraverseAssociations(new List<Element>() { startElement }, new TraverseAssociationsDescription(TraversalDirection.Ascending));
                                     var descendingAssociations = utilityNetwork.TraverseAssociations(new List<Element>() { startElement }, new TraverseAssociationsDescription(TraversalDirection.Descending));
                                     var linkBoxElement = ascendingAssociations.Associations
@@ -2360,68 +2080,48 @@ namespace CLP.ADMSUpdatePlugin
                                         return;
                                     }
 
-                                    DomainNetwork domainNetwork = utilityNetworkDefinition.GetDomainNetwork("Electric");
-                                    Tier sourceTier = domainNetwork.GetTier("LV");
                                     LoggerHelper.Info($"Trace start at: {DateTime.Now}");
-                                    TraceConfiguration cfg = sourceTier.GetTraceConfiguration();
-                                    cfg.Propagators = new List<Propagator>();
-                                    var catSwitch = utilityNetworkDefinition
-                                        .GetAvailableCategories()
-                                        .FirstOrDefault(c => c.Equals("E:Switch", StringComparison.OrdinalIgnoreCase));
-                                    cfg.Filter.Scope = TraversabilityScope.JunctionsAndEdges;
-                                    if (catSwitch != null)
+                                    LoadingStatusText = "Running trace...";
+                                    var features = await UtilityNetworkTraceRunner.RunConnectedTraceAsync(
+                                        utilityNetwork,
+                                        utilityNetworkDefinition,
+                                        startElement,
+                                        new TraceRunRequest { TierName = "LV", TerminalName = "SS:S1", Preset = TraceBarrierPreset.LvLinkBox },
+                                        traceFeatures => HighlightPathOnMapAsync(utilityNetwork, traceFeatures));
+                                    LoggerHelper.Info($"Trace end at: {DateTime.Now}");
+
+                                    var supplyPointFeature = features.FirstOrDefault(p => p.AssetGroupName == "LV Service Point" && p.AssetTypeName == "Supply Point");
+                                    if (supplyPointFeature == null)
                                     {
-                                        var catExpr = new CategoryComparison(CategoryOperator.IsEqual, catSwitch);
-                                        cfg.Traversability.Barriers = (Condition)catExpr;
+                                        return;
                                     }
 
-                                    var tcfg = startElement.AssetType.GetTerminalConfiguration();
-                                    startElement.Terminal = tcfg.Terminals.FirstOrDefault(p => p.Name == "SS:S1");
+                                    var lvSwitchFeatures = features
+                                        .Where(p => p.AssetGroupName == "LV Switch" && p.AssetTypeName == "Switch")
+                                        .ToList();
 
-                                    using (TraceManager traceManager = utilityNetwork.GetTraceManager())
+                                    var supplyPoint = new LVFeature_Model(supplyPointFeature, utilityNetwork);
+                                    var linkBox = new LVFeature_Model(linkBoxFeature, utilityNetwork)
                                     {
-                                        TraceArgument traceArgument = new TraceArgument(new List<Element>() { startElement });
-                                        traceArgument.Configuration = cfg;
-                                        Tracer tracer = traceManager.GetTracer<ConnectedTracer>();
-                                        IReadOnlyList<Result> traceResults = tracer.Trace(traceArgument);
-                                        var results = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(traceResults);
-                                        LoggerHelper.Info($"Trace end at: {DateTime.Now}");
-                                        await HighlightPathOnMapAsync(utilityNetwork, results.FeatureByGlobalId.Values);
+                                        SPSID = supplyPoint.SPSID,
+                                        ADDRESS = supplyPoint.ADDRESS,
+                                        SUBNETWORKNAME = linkBoxFeature.GetString("SUPPORTEDSUBNETWORKNAME"),
+                                    };
 
-                                        var features = results.FeatureByGlobalId.Values;
-                                        var supplyPointFeature = features.FirstOrDefault(p => p.AssetGroupName == "LV Service Point" && p.AssetTypeName == "Supply Point");
-                                        if (supplyPointFeature == null)
-                                        {
-                                            return;
-                                        }
-
-                                        var lvSwitchFeatures = features
-                                            .Where(p => p.AssetGroupName == "LV Switch" && p.AssetTypeName == "Switch")
-                                            .ToList();
-
-                                        var supplyPoint = new LVFeature_Model(supplyPointFeature, utilityNetwork);
-                                        var linkBox = new LVFeature_Model(linkBoxFeature, utilityNetwork)
-                                        {
-                                            SPSID = supplyPoint.SPSID,
-                                            ADDRESS = supplyPoint.ADDRESS,
-                                            SUBNETWORKNAME = linkBoxFeature.GetString("SUPPORTEDSUBNETWORKNAME"),
-                                        };
-
-                                        LVFeature_Model CreateLVSwitchModel(FeatureSnapshot feature)
-                                        {
-                                            var model = new LVFeature_Model(feature, utilityNetwork);
-                                            model.SPSID = supplyPoint.SPSID;
-                                            model.ADDRESS = supplyPoint.ADDRESS;
-                                            return model;
-                                        }
-
-                                        var lvSwitchModels = lvSwitchFeatures.Select(CreateLVSwitchModel).ToList();
-                                        var selectedLVSwitch = lvSwitchModels.FirstOrDefault(p => p.Source.Element.GlobalID == startElement.GlobalID);
-
-                                        this.LVFeature = selectedLVSwitch;
-                                        this.LVFeatureContainer = new LVFeatureContainer_Model(null, null, null, null, null, null, lvSwitchModels, selectedLVSwitch, linkBox, supplyPoint);
-                                        this.ShowLVLinkBoxPanel = true;
+                                    LVFeature_Model CreateLVSwitchModel(FeatureSnapshot feature)
+                                    {
+                                        var model = new LVFeature_Model(feature, utilityNetwork);
+                                        model.SPSID = supplyPoint.SPSID;
+                                        model.ADDRESS = supplyPoint.ADDRESS;
+                                        return model;
                                     }
+
+                                    var lvSwitchModels = lvSwitchFeatures.Select(CreateLVSwitchModel).ToList();
+                                    var selectedLVSwitch = lvSwitchModels.FirstOrDefault(p => p.Source.Element.GlobalID == startElement.GlobalID);
+
+                                    this.LVFeature = selectedLVSwitch;
+                                    this.LVFeatureContainer = new LVFeatureContainer_Model(null, null, null, null, null, null, lvSwitchModels, selectedLVSwitch, linkBox, supplyPoint);
+                                    this.ShowLVLinkBoxPanel = true;
                                 }
                                 this.ShowSearchPanel = false;
                                 this.ShowLVFeaturePanel = true;
@@ -2435,6 +2135,11 @@ namespace CLP.ADMSUpdatePlugin
                     }
                 }
             });
+            }
+            finally
+            {
+                SetBusyState(false);
+            }
         }
 
         // GetCableADMSName method (using srcSubstation, desSubstation, cable)

@@ -222,7 +222,7 @@ namespace CLP.ADMSUpdatePlugin
         public static string GetIsolator_SOM_CCT(Pole_Model first)
         {
             if (first.IsSingleDevice) return ReplaceMultipleSpaces($"P.{first.FROM_POLE_NUM}");
-            else if (!first.IsSingleDevice && string.IsNullOrEmpty(first.TO_POLE_NUM)) return ReplaceMultipleSpaces($"{first.TO_SS_NAME}");
+            else if (!first.IsSingleDevice && string.IsNullOrEmpty(first.TO_POLE_NUM)) return ReplaceMultipleSpaces($"{first.TO_SS_NAME?.Replace("S/S", "")}");
             return ReplaceMultipleSpaces($"{first.CIRCUIT_NAME} P.{first.TO_POLE_NUM}");
         }
 
@@ -371,13 +371,13 @@ namespace CLP.ADMSUpdatePlugin
         public static string GetADMSNameForIsolator(Pole_Model first)
         {
             string part1, part2, part3;
-            if (first.IsTxInPole)
+            if (first.IsTxOrPMSInPole)
                 part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NAME?.Replace("S/S", "")}").PadRight(26);
             else
                 part1 = ReplaceMultipleSpaces($"{first.CIRCUIT_NAME}").PadRight(26);
             part2 = $"P{first.FROM_POLE_NUM}";
             if (!string.IsNullOrEmpty(first.TO_POLE_NUM)) part2 += $"-{first.TO_POLE_NUM}";
-            else part2 += $"-{first.TO_SS_NAME}";
+            else part2 += $"-{first.TO_SS_NAME?.Replace("S/S", "")}";
             part2 = ReplaceMultipleSpaces(part2).PadRight(41);
             part3 = $"ISOL".PadRight(13);
             return $"{part1}{part2}{part3}";
@@ -386,12 +386,17 @@ namespace CLP.ADMSUpdatePlugin
         public static string GetADMSAliasForIsolator(Pole_Model first)
         {
             string part1, part2, part3;
-            if (first.IsTxInPole)
+            if (first.IsTxOrPMSInPole)
                 part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NUM}").PadRight(7);
             else
                 part1 = ReplaceMultipleSpaces($"{first.CIRCUIT_ID}").PadRight(7);
             part2 = $"P{first.FROM_POLE_NUM}";
-            if (!string.IsNullOrEmpty(first.TO_POLE_NUM)) part2 += $"-{first.TO_POLE_NUM}";
+            if (!string.IsNullOrEmpty(first.TO_POLE_NUM)) 
+            {
+                var splitPoleNum = first.TO_POLE_NUM?.Split("/");
+                if (splitPoleNum.Length >= 2) part2 += $"-{splitPoleNum[1]}";
+                else part2 += $"-{first.TO_POLE_NUM}";
+            }
             else part2 += $"-{first.TO_SS_NUM}";
             part2 = ReplaceMultipleSpaces(part2).PadRight(15);
             part3 = $"ISOL".PadRight(8);
@@ -401,12 +406,12 @@ namespace CLP.ADMSUpdatePlugin
         public static string GetADMSNameForFuse(Pole_Model first)
         {
             string part1, part2, part3;
-            if (first.IsTxInPole)
+            if (first.IsTxOrPMSInPole)
                 part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NAME?.Replace("S/S", "")}").PadRight(26);
             else
                 part1 = ReplaceMultipleSpaces($"{first.CIRCUIT_NAME}").PadRight(26);
             part2 = $"P{first.FROM_POLE_NUM}";
-            if (first.IsTxInPole) part2 += $"-{first.FROM_SS_NAME} P/M Tx";
+            if (first.IsTxOrPMSInPole && first.InPoleType != "PMS") part2 += $"-{first.FROM_SS_NAME?.Replace("S/S", "")} P/M Tx";
             else part2 += $"-P{first.TO_POLE_NUM}";
                 part2 = ReplaceMultipleSpaces(part2).PadRight(41);
             part3 = $"FUSE".PadRight(13);
@@ -416,12 +421,12 @@ namespace CLP.ADMSUpdatePlugin
         public static string GetADMSAliasForFuse(Pole_Model first)
         {
             string part1, part2, part3;
-            if (first.IsTxInPole)
+            if (first.IsTxOrPMSInPole)
                 part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NUM}").PadRight(7);
             else
                 part1 = ReplaceMultipleSpaces($"{first.CIRCUIT_ID}").PadRight(7);
             part2 = $"P{first.FROM_POLE_NUM}";
-            if (first.IsTxInPole) part2 += $"-{first.FROM_SS_NUM} P/M";
+            if (first.IsTxOrPMSInPole && first.InPoleType != "PMS") part2 += $"-{first.FROM_SS_NUM} P/M";
             else
             {
                 if($"-P{first.TO_POLE_NUM}".Contains(part2)) part2 += $"-P{first.TO_POLE_NUM}".Replace(part2, "");
@@ -444,6 +449,7 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetSOMSSForFuse(Pole_Model first)
         {
+            if (first.InPoleType == "PMS" && first.IsTxOrPMSInPole) return ReplaceMultipleSpaces(first.FROM_SS_NAME?.Replace("S/S", "")) + " " + $"P.{first.FROM_POLE_NUM}";
             return ReplaceMultipleSpaces(first.CIRCUIT_NAME) + " " + $"P.{first.FROM_POLE_NUM}";
         }
 

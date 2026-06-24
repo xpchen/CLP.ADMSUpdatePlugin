@@ -27,21 +27,13 @@
             <StackPanel Orientation="Vertical" Grid.Row="0">
                 <TextBlock Text="Select update model:"  />
                 <ComboBox Margin="0,5,0,0" ItemsSource="{Binding UpdateModels}" SelectedValue="{Binding UpdateMode,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" DisplayMemberPath="Value" SelectedValuePath="Key" />
-                <!--<Image Source="pack://application:,,,/CLP.ADMSUpdatePlugin;component/Images/SelectionSelectTool32.png"  Width="32" Height="32"/>
-          <Button  Command="{Binding ActivateSelectionToolCommand}" Width="32" Height="32">
-              <Button.Template>
-                  <ControlTemplate>
-                      <Border>
-                          <Image Source="pack://application:,,,/CLP.ADMSUpdatePlugin;component/Images/SelectionSelectTool32.png"  Width="32" Height="32"/>
-                      </Border>
-                  </ControlTemplate>
-              </Button.Template>
-          </Button>-->
                 <TextBlock Text="{Binding SelectUpdateModeRemark}" Margin="0,15,0,5"/>
             </StackPanel>
             <DataGrid Grid.Row="1" ItemsSource="{Binding SelectionElements}" SelectionMode="Single" IsReadOnly="True" SelectedItem="{Binding SelectionElement,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" AutoGenerateColumns="False" CanUserAddRows="False">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="OBJECT ID" Binding="{Binding ObjectID}"/>
+                    <DataGridTextColumn Header="ASSET GROUP" Binding="{Binding AssetGroup.Name}"/>
+                    <DataGridTextColumn Header="ASSET TYPE" Binding="{Binding AssetType.Name}"/>
                 </DataGrid.Columns>
             </DataGrid>
             <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right" Margin="15">
@@ -225,7 +217,7 @@
                                     <TextBox Text="{Binding ASSET_TYPE,Mode=OneTime}" IsReadOnly="True" IsEnabled="False"/>
                                 </StackPanel>
                                 <StackPanel Margin="0,5,0,5" Orientation="Horizontal" Visibility="{Binding ShowCheckBoxs,Converter={StaticResource BooleanToVisibilityConverter}}">
-                                    <CheckBox IsChecked="{Binding IsTxInPole}" Content="Transformer/PMS In Pole" Margin="5,0,0,0"></CheckBox>
+                                    <CheckBox IsChecked="{Binding IsTxOrPMSInPole}" Content="Transformer/PMS In Pole" Margin="5,0,0,0"></CheckBox>
                                     <CheckBox IsChecked="{Binding IsSingleDevice}" Content="Single Device In Pole" Margin="5,0,0,0"></CheckBox>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical" Visibility="{Binding ShowCircuitFields,Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -766,6 +758,15 @@
                 <Button Content="Update"  Command="{Binding UpdateCommand}" Margin="5,0,0,0"></Button>
             </StackPanel>
         </Grid>
+
+        <Border Background="#80000000"
+                IsHitTestVisible="True"
+                Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="220" Height="16" Margin="0,0,0,10"/>
+                <TextBlock Text="{Binding LoadingStatusText}" Foreground="White" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
     </Grid>
 
 </UserControl>

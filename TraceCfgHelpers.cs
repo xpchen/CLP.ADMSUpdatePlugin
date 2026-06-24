@@ -133,4 +133,60 @@ public static class TraceCfgHelpers
         // 入口：Barriers 是 Condition，运行时一般是 ConditionalExpression
         return (Condition)Simplify(barriers as ConditionalExpression);
     }
+
+    public static void AddOrBarrier(TraceConfiguration cfg, Condition condition)
+    {
+        if (condition == null) return;
+        var existing = cfg.Traversability.Barriers as ConditionalExpression;
+        cfg.Traversability.Barriers = existing == null ? condition : new Or(existing, (ConditionalExpression)condition);
+    }
+
+    public static void AddCategoryBarrier(UtilityNetworkDefinition def, TraceConfiguration cfg, string categoryName)
+    {
+        var category = def.GetAvailableCategories()
+            .FirstOrDefault(c => c.Equals(categoryName, StringComparison.OrdinalIgnoreCase));
+        if (category != null)
+        {
+            AddOrBarrier(cfg, new CategoryComparison(CategoryOperator.IsEqual, category));
+        }
+    }
+
+    public static void AddAssetGroupBarriers(UtilityNetworkDefinition def, TraceConfiguration cfg, IEnumerable<int> assetGroups)
+    {
+        var assetGroupAttr = FindNetworkAttribute(def, "Assetgroup", "Asset group", "AssetGroup");
+        if (assetGroupAttr == null) return;
+        foreach (var assetGroup in assetGroups)
+        {
+            AddOrBarrier(cfg, new NetworkAttributeComparison(assetGroupAttr, Operator.Equal, assetGroup));
+        }
+    }
+
+    public static void AddLifeCycleBarriers(UtilityNetworkDefinition def, TraceConfiguration cfg, IEnumerable<int> statuses)
+    {
+        var lifeCycleStatusAttr = FindNetworkAttribute(def, "LifeCycleStatus", "Life Cycle Status");
+        if (lifeCycleStatusAttr == null) return;
+        foreach (var status in statuses)
+        {
+            AddOrBarrier(cfg, new NetworkAttributeComparison(lifeCycleStatusAttr, Operator.Equal, status));
+        }
+    }
+
+    public static void AddNetworkAttributeBarrier(UtilityNetworkDefinition def, TraceConfiguration cfg, Operator op, int value, params string[] attributeNames)
+    {
+        var attribute = FindNetworkAttribute(def, attributeNames);
+        if (attribute != null)
+        {
+            AddOrBarrier(cfg, new NetworkAttributeComparison(attribute, op, value));
+        }
+    }
+
+    public static TraceConfiguration CreateTierConfiguration(UtilityNetworkDefinition def, string tierName)
+    {
+        DomainNetwork domainNetwork = def.GetDomainNetwork("Electric");
+        Tier tier = domainNetwork.GetTier(tierName);
+        TraceConfiguration cfg = tier.GetTraceConfiguration();
+        cfg.Propagators = new List<Propagator>();
+        cfg.Filter.Scope = TraversabilityScope.JunctionsAndEdges;
+        return cfg;
+    }
 }

@@ -25,27 +25,6 @@ namespace CLP.ADMSUpdatePlugin
         {
             get
             {
-                //// Part 1: 26 characters (substation name)
-                //string substationSource = this.SSNAME.Replace("S/S", "").PadRight(26);
-
-                //// Part 2: 41 characters
-                //string bbSourcePart = string.IsNullOrEmpty(BB_NUMBER) ? "" : $"BD {BB_NUMBER}-";
-
-                //string substationTarget =(Target.SSNAME == this.SSNAME)?"": Target.SSNAME.Replace("S/S", "").PadRight(26);
-                //string bbTargetPart = (Target.SSNAME == this.SSNAME) ? "" : string.IsNullOrEmpty(Target.BB_NUMBER) ? "" : $"BD {Target.BB_NUMBER} ";
-                //string serialNumberPart = string.IsNullOrEmpty(SERIALNUMBER) ? "" : $"#{SERIALNUMBER}";
-
-                //// Ensuring Part 2 is exactly 41 characters long
-                //string part2 = $"{bbSourcePart}{substationTarget}{bbTargetPart}{serialNumberPart}".PadRight(41);
-
-                //// Part 3: 13 characters (asset type abbreviation)
-                //string assetTypeAbbreviation = AssetTypeAbbreviations.ContainsKey(this.Source.AssetTypeName)
-                //                                ? AssetTypeAbbreviations[this.Source.AssetTypeName]
-                //                                : "";
-
-                //string part3 = $"{assetTypeAbbreviation} ".PadRight(13);
-
-                //return $"{substationSource}{part2}{part3}";
                 if (this.Source.AssetGroupName == "HV Switch" && this.Target!=null && this.Target.Source.AssetGroupName== "Transformer")
                 {
                     return ADMSUpdateHelper.GetADMSNameForCBToTransformer(this, this.Target);
@@ -74,22 +53,6 @@ namespace CLP.ADMSUpdatePlugin
                 else { 
                     return ADMSUpdateHelper.GetADMSAliasForCBToCB(this, Target);
                 }
-                //// Part 1: 7 characters (substation number)
-                //string substationSource = this.SSCODE.PadRight(7);
-
-                //// Part 2: 15 characters (PNL B{BB_NUMBER}/)
-                //string bbSourcePart = string.IsNullOrEmpty(BB_NUMBER) ? "" : $" B{BB_NUMBER}/";
-                //string panelPart = (String.IsNullOrEmpty( PANEL_NO)?"": PANEL_NO).PadRight(15 - bbSourcePart.Length);  // Ensuring total length is 15
-
-                //// Part 3: 8 characters (asset type abbreviation)
-                //string assetTypeAbbreviation = AssetTypeAbbreviations.ContainsKey(this.Source.AssetTypeName)
-                //                                ? AssetTypeAbbreviations[this.Source.AssetTypeName]
-                //                                : "";
-
-                //string part3 = $"{assetTypeAbbreviation} ".PadRight(8);
-
-                //return $"{substationSource}PNL {bbSourcePart}{panelPart} {part3}";
-               
             }
         }
 

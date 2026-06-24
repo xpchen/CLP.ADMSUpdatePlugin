@@ -173,23 +173,39 @@ namespace CLP.ADMSUpdatePlugin
             set => SetProperty(ref _to_ss_num, value);
         }
 
-        private bool _isTxInPole;
+        private bool _isTxOrPMSInPole;
 
-        public bool IsTxInPole
+        public bool IsTxOrPMSInPole
         {
-            get => _isTxInPole;
+            get => _isTxOrPMSInPole;
             set
             {
-                SetProperty(ref _isTxInPole, value);
+                SetProperty(ref _isTxOrPMSInPole, value);
                 if (ASSET_TYPE == "Isolator") this.ShowFromSubstationFields = value;
                 if (ASSET_TYPE == "HV PM TX") this.ShowToPoleNoDropdown = !value;
                 if (ASSET_TYPE == "Fuse")
                 {
-                    this.ShowToPoleNoDropdown = !value;
                     this.ShowFromSubstationFields = value;
-                    this.ShowToPoleNo = !value;
+                    if (InPoleType != "PMS")
+                    {
+                        this.ShowToPoleNo = !value;
+                        this.ShowToPoleNoDropdown = !value;
+                    } 
+                    else
+                    {
+                        this.ShowToPoleNo = true;
+                        this.ShowToPoleNoDropdown = true;
+                    }
                 }
             }
+        }
+
+        private string _inPoleType;
+
+        public string InPoleType
+        {
+            get => _inPoleType;
+            set => SetProperty(ref _inPoleType, value);
         }
 
         private bool _isSingleDevice;
@@ -213,22 +229,6 @@ namespace CLP.ADMSUpdatePlugin
             get
             {
                 return this.ASSET_TYPE == "Fuse";
-            }
-        }
-
-        public bool IsNotTransformerOrSwitch
-        {
-            get
-            {
-                return !this.IsTransformerOrSwitch;
-            }
-        }
-
-        public bool ShowPoleDetailFields
-        {
-            get
-            {
-                return !this.IsTransformerOrSwitch && !this.IsFuse;
             }
         }
 
