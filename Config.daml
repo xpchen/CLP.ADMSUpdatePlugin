@@ -1,5 +1,5 @@
 ﻿<ArcGIS defaultAssembly="CLP.ADMSUpdatePlugin.dll" defaultNamespace="CLP.ADMSUpdatePlugin" xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
-  <AddInInfo id="{a9e43ee3-40ee-4d09-a2cb-759d8a125323}" version="2.04" desktopVersion="3.3.52636" product="ArcGISPro">
+  <AddInInfo id="{a9e43ee3-40ee-4d09-a2cb-759d8a125323}" version="2.08" desktopVersion="3.3.52636" product="ArcGISPro">
     <Name>CLP.ADMSUpdatePlugin</Name>
     <Description>CLP.ADMSUpdatePlugin description</Description>
     <Image>Images\AddinDesktop32.png</Image>

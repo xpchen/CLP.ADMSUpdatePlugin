@@ -527,7 +527,7 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetADMSNameForSourceFuse(LVFeature_Model first)
         {
-            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SS_NAME?.Replace("S/S", "")}").PadRight(67);
+            string part1 = ($"[{first.SUBNETWORKNAME}] {ReplaceMultipleSpaces(first.SS_NAME?.Replace("S/S", ""))}").PadRight(67);
             string part2 = ($"D{first.TX_NO} CCT {first.CCT_NO}").PadRight(45);
             string part3 = "LVFUSE".PadRight(10);
             return $"{part1}{part2}{part3}";
@@ -544,7 +544,7 @@ namespace CLP.ADMSUpdatePlugin
         public static string GetSOMSSForSourceFuse(LVFeature_Model first)
         {
             string transformerPart = string.IsNullOrEmpty(first.TX_NO) ? "" : $" D{first.TX_NO}";
-            return $"{first.SS_NAME}-L/Tx{transformerPart}-LVB";
+            return $"{ReplaceMultipleSpaces(first.SS_NAME)}-L/Tx{transformerPart}-LVB";
         }
 
         public static string GetSOMCCTForSourceFuse(LVFeature_Model first)
@@ -554,7 +554,7 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetADMSNameForLocalSupply(LVFeature_Model first)
         {
-            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SPSID} {first.ADDRESS}").PadRight(101);
+            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SPSID} {ReplaceMultipleSpaces(first.ADDRESS)}").PadRight(101);
             string part2 = "LocSP".PadRight(13);
             return $"{part1}{part2}";
         }
@@ -569,7 +569,13 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetADMSNameForSupplyPoint(LVFeature_Model first)
         {
-            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SPSID} {first.ADDRESS}").PadRight(99);
+            string subnetworkname = first.SUBNETWORKNAME;
+            if (!string.IsNullOrEmpty(first.SUBNETWORKNAME))
+            {
+                var splitSubnetworkName = subnetworkname.Split('-');
+                if (splitSubnetworkName.Length >= 2) subnetworkname = splitSubnetworkName[0];
+            }
+            string part1 = ($"[{subnetworkname}] {first.SPSID} {first.ADDRESS}").PadRight(99);
             string part2 = "LVSP".PadRight(10);
             return $"{part1}{part2}";
         }
@@ -584,7 +590,7 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetADMSNameForPillar(LVFeature_Model first)
         {
-            string part1 = ($"{first.PR_NAME?.Replace("Pillar", "")} PILLAR").PadRight(90);
+            string part1 = ($"{ReplaceMultipleSpaces(first.PR_NAME?.Replace("Pillar", ""))} PILLAR").PadRight(90);
             string part2 = "LVPILLAR".PadRight(10);
             return $"{part1}{part2}";
         }
@@ -598,7 +604,7 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetADMSNameForPillarFuse(LVFeature_Model first)
         {
-            string part1 = ($"[{first.SUBNETWORKNAME}] {first.PR_NAME?.Replace("Pillar", "")} Pillar").PadRight(60);
+            string part1 = ($"[{first.SUBNETWORKNAME}] {ReplaceMultipleSpaces(first.PR_NAME?.Replace("Pillar", ""))} Pillar").PadRight(60);
             string part2 = ($"CCT {first.CCT_NO}").PadRight(45);
             string part3 = "LVFUSE".PadRight(10);
             return $"{part1}{part2}{part3}";
@@ -614,7 +620,7 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetSOMSSForPillarFuse(LVFeature_Model first)
         {
-            return $"{first.PR_NAME} Pillar";
+            return $"{ReplaceMultipleSpaces(first.PR_NAME)} Pillar";
         }
 
         public static string GetSOMCCTForPillarFuse(LVFeature_Model first)
@@ -624,7 +630,7 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetADMSNameForPoleSourceFuse(LVFeature_Model first)
         {
-            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SS_NAME}").PadRight(67);
+            string part1 = ($"[{first.SUBNETWORKNAME}] {ReplaceMultipleSpaces(first.SS_NAME)}").PadRight(67);
             string part2 = ($"D{first.TX_NO} CCT {first.CCT_NO}").PadRight(45);
             string part3 = "LVFUSE".PadRight(10);
             return $"{part1}{part2}{part3}";
@@ -640,7 +646,7 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetSOMSSForPoleSourceFuse(LVFeature_Model first)
         {
-            return $"{first.SS_NAME} P/M Tx";
+            return $"{ReplaceMultipleSpaces(first.SS_NAME)} P/M Tx";
         }
 
         public static string GetSOMCCTForPoleSourceFuse(LVFeature_Model first)
@@ -650,7 +656,7 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetADMSNameForMotherSupplyPoint(LVFeature_Model first)
         {
-            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SS_NAME}").PadRight(57);
+            string part1 = ($"[{first.SUBNETWORKNAME}] {ReplaceMultipleSpaces(first.SS_NAME)}").PadRight(57);
             string part2 = ($"D{first.TX_NO} CCT {first.CCT_NO} P.{first.POLENUM}").PadRight(45);
             string part3 = "LVFUSE".PadRight(10);
             return $"{part1}{part2}{part3}";
@@ -666,7 +672,7 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetSOMSSForMotherSupplyPoint(LVFeature_Model first)
         {
-            return first.ADDRESS;
+            return ReplaceMultipleSpaces(first.ADDRESS);
         }
 
         public static string GetSOMCCTForMotherSupplyPoint(LVFeature_Model first)
@@ -676,7 +682,7 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetADMSNameForLinkBox(LVFeature_Model first)
         {
-            string part1 = ($"{first.SPSID} {first.ADDRESS}").PadRight(90);
+            string part1 = ($"{first.SPSID} {ReplaceMultipleSpaces(first.ADDRESS)}").PadRight(90);
             string part2 = "LVSP".PadRight(10);
             return $"{part1}{part2}";
         }
@@ -691,7 +697,7 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetADMSNameForLinkBoxLeg(LVFeature_Model first)
         {
-            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SPSID} {first.ADDRESS}").PadRight(96);
+            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SPSID} {ReplaceMultipleSpaces(first.ADDRESS)}").PadRight(96);
             string part2 = ($"LEG {first.LEG} LVLB LEG").PadRight(16);
             return $"{part1}{part2}";
         }
@@ -706,7 +712,7 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetSOMSSForLinkBoxLeg(LVFeature_Model first)
         {
-            return first.ADDRESS;
+            return ReplaceMultipleSpaces(first.ADDRESS);
         }
 
         public static string GetSOMCCTForLinkBoxLeg(LVFeature_Model first)
