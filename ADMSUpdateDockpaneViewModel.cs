@@ -499,22 +499,21 @@ namespace CLP.ADMSUpdatePlugin
                             insp["ADMS_Alias"] = cableADMSAlias;
 
                             editOp.Modify(insp);
-
-                            if (!editOp.IsEmpty)
+                        }
+                        if (!editOp.IsEmpty)
+                        {
+                            if (editOp.Execute())
                             {
-                                if (editOp.Execute())
-                                {
-                                    LoggerHelper.Info("ADMS Name & Alias update completed successfully.");
-                                    MessageBox.Show("Update successfully!");
-                                }
-                                else
-                                {
-                                    LoggerHelper.Error($"Update failed: {editOp.ErrorMessage}");
-                                    MessageBox.Show("Update fail: " + editOp.ErrorMessage);
-                                }
+                                LoggerHelper.Info("ADMS Name & Alias update completed successfully.");
+                                MessageBox.Show("Update successfully!");
+                            }
+                            else
+                            {
+                                LoggerHelper.Error($"Update failed: {editOp.ErrorMessage}");
+                                MessageBox.Show("Update fail: " + editOp.ErrorMessage);
                             }
                         }
-                    }
+                        }
                     catch (Exception ex)
                     {
                         LoggerHelper.Error($"Exception occurred during ADMS Name & Alias update: {ex.Message}");
