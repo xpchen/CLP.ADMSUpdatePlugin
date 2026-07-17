@@ -190,7 +190,10 @@ namespace CLP.ADMSUpdatePlugin
             string substationTarget = ReplaceMultipleSpaces(second.SSNAME.Replace("S/S", ""));
             string bbTargetPart = string.IsNullOrEmpty(second.BB_NUMBER) ? "" : $" BD {second.BB_NUMBER} ";
             string serialNumberPart = string.IsNullOrEmpty(first.SERIALNUMBER) ? "" : $" #{first.SERIALNUMBER}";
-            string part2 = $"{substationTarget}{bbTargetPart}{serialNumberPart}";
+            var panelPart = "";
+            if (first.Source.AssetTypeName == "Source Circuit Breaker")
+                panelPart = $" (Panel {first.PANEL_NO})";
+            string part2 = $"{substationTarget}{bbTargetPart}{serialNumberPart}{panelPart}";
             if (second.Source.AssetGroupName == "Transformer")
             {
                 string txPart = string.IsNullOrEmpty(second.TX_NO) ? "" : $" D{second.TX_NO}";
@@ -269,7 +272,7 @@ namespace CLP.ADMSUpdatePlugin
                                             : "";
             string part3 = $"{assetTypeAbbreviation} ".PadRight(13);
             if (first.Source.AssetTypeName == "Source Circuit Breaker")
-                part3 = $"CBD{first.PANEL_NO ?? ""}5";
+                part3 = $"CBD{first.PANEL_NO ?? ""}5".PadRight(13);
             return $"{substationSource}{part2}{part3}";
         }
 
@@ -283,7 +286,7 @@ namespace CLP.ADMSUpdatePlugin
                                             : "";
             string part3 = $"{assetTypeAbbreviation} ".PadRight(13);
             if (first.Source.AssetTypeName == "Source Circuit Breaker")
-                part3 = $"CBD{first.PANEL_NO ?? ""}5";
+                part3 = $"CBD{first.PANEL_NO ?? ""}5".PadRight(13);
             return $"{substationSource}{part2}{part3}";
         }
 
@@ -394,7 +397,8 @@ namespace CLP.ADMSUpdatePlugin
             if (!string.IsNullOrEmpty(first.TO_POLE_NUM)) 
             {
                 var splitPoleNum = first.TO_POLE_NUM?.Split("/");
-                if (splitPoleNum.Length >= 2) part2 += $"-{splitPoleNum[1]}";
+                if (splitPoleNum.Length >= 2 && first.FROM_POLE_NUM == splitPoleNum[0]) 
+                    part2 += $"-{splitPoleNum[1]}";
                 else part2 += $"-{first.TO_POLE_NUM}";
             }
             else part2 += $"-{first.TO_SS_NUM}";

@@ -15,6 +15,14 @@
         <extensions:DesignOnlyResourceDictionary Source="pack://application:,,,/ArcGIS.Desktop.Framework;component\Themes\Default.xaml"/>
       </ResourceDictionary.MergedDictionaries>
             <converter:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+            <converter:ContainsSameAsCurrentConverter x:Key="ContainsSameAsCurrent" />
+            <!--<Style TargetType="TextBlock">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=Text, Converter={StaticResource ContainsSameAsCurrent}}" Value="True">
+                        <Setter Property="Foreground" Value="Red" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>-->
         </ResourceDictionary>
   </UserControl.Resources>
     <Grid>
@@ -66,19 +74,27 @@
                                 <CheckBox IsChecked="{Binding IsChecked}" Content="Update" Margin="5,0,0,0"></CheckBox>
                             </StackPanel>
                             <StackPanel Orientation="Vertical">
-                                <TextBlock Text="ADMS Name:" />
+                                <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
                                 <TextBox Text="{Binding ADMSName,Mode=OneTime}" IsReadOnly="True"/>
                             </StackPanel>
                             <StackPanel Orientation="Vertical">
-                                <TextBlock Text="ADMS Alias:" />
+                                <TextBlock Text="{Binding ADMSAliasLabel,Mode=OneTime}" />
                                 <TextBox Text="{Binding ADMSAlias,Mode=OneTime}" IsReadOnly="True"/>
                             </StackPanel>
                             <StackPanel Orientation="Vertical">
-                                <TextBlock Text="Bus ADMS Name:" />
+                                <TextBlock Text="{Binding SOMSSLabel,Mode=OneTime}" />
+                                <TextBox Text="{Binding SOMSS,Mode=OneTime}" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="{Binding SOMCCTLabel,Mode=OneTime}" />
+                                <TextBox Text="{Binding SOMCCT,Mode=OneTime}" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="{Binding BusADMSNameLabel,Mode=OneTime}" />
                                 <TextBox Text="{Binding BusADMSName,Mode=OneTime}" IsReadOnly="True"/>
                             </StackPanel>
                             <StackPanel Orientation="Vertical">
-                                <TextBlock Text="Bus ADMS Alias:" />
+                                <TextBlock Text="{Binding BusADMSAliasLabel,Mode=OneTime}" />
                                 <TextBox Text="{Binding BusADMSAlias,Mode=OneTime}" IsReadOnly="True"/>
                             </StackPanel>
                         </StackPanel>
@@ -92,19 +108,27 @@
                                     <CheckBox IsChecked="{Binding IsChecked}" Content="Update" Margin="5,0,0,0"></CheckBox>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="ADMS Name:" />
+                                    <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
                                     <TextBox Text="{Binding ADMSName,Mode=OneTime}" IsReadOnly="True"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="ADMS Alias:" />
+                                    <TextBlock Text="{Binding ADMSAliasLabel,Mode=OneTime}" />
                                     <TextBox Text="{Binding ADMSAlias,Mode=OneTime}" IsReadOnly="True"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="Bus ADMS Name:" />
+                                    <TextBlock Text="{Binding SOMSSLabel,Mode=OneTime}" />
+                                    <TextBox Text="{Binding SOMSS,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="{Binding SOMCCTLabel,Mode=OneTime}" />
+                                    <TextBox Text="{Binding SOMCCT,Mode=OneTime}" IsReadOnly="True"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="{Binding BusADMSNameLabel,Mode=OneTime}" />
                                     <TextBox Text="{Binding BusADMSName,Mode=OneTime}" IsReadOnly="True"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="Bus ADMS Alias:" />
+                                    <TextBlock Text="{Binding BusADMSAliasLabel,Mode=OneTime}" />
                                     <TextBox Text="{Binding BusADMSAlias,Mode=OneTime}" IsReadOnly="True"/>
                                 </StackPanel>
                             </StackPanel>
@@ -125,6 +149,10 @@
                             <StackPanel Orientation="Vertical">
                                 <TextBlock Text="Cable ADMS Alias:" />
                                 <TextBox Text="{Binding CableADMSAlias}" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="{Binding CableTerminatedSubstationLabel,Mode=OneTime}" />
+                                <TextBox Text="{Binding CableTerminatedSubstation}" IsReadOnly="True"/>
                             </StackPanel>
                             <StackPanel Orientation="Vertical">
                                 <TextBlock Text="Cable Total:" />
@@ -169,11 +197,11 @@
                                 <CheckBox IsChecked="{Binding IsChecked}" Content="Update" Margin="5,0,0,0"></CheckBox>
                             </StackPanel>
                             <StackPanel Orientation="Vertical">
-                                <TextBlock Text="ADMS Name:" />
+                                <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
                                 <TextBox Text="{Binding ADMSName,Mode=OneTime}" IsReadOnly="True"/>
                             </StackPanel>
                             <StackPanel Orientation="Vertical">
-                                <TextBlock Text="ADMS Alias:" />
+                                <TextBlock Text="{Binding ADMSAliasLabel,Mode=OneTime}" />
                                 <TextBox Text="{Binding ADMSAlias,Mode=OneTime}" IsReadOnly="True"/>
                             </StackPanel>
                         </StackPanel>
@@ -289,20 +317,20 @@
                         </Border>
                         <StackPanel Grid.Row="1" Margin="5" Orientation="Vertical">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="ADMS Name:" />
+                                <TextBlock Text="{Binding PoleDevice.ADMSNameLabel}" />
                                 <Button Margin="10,0,0,2" Content="Preview"  Command="{Binding RefreshCommand}" ></Button>
                             </StackPanel>
                             <TextBox Text="{Binding ADMSNameDisplay,Mode=Default}" IsReadOnly="True"/>
                             <StackPanel Orientation="Vertical">
-                                <TextBlock Text="ADMS Alias:" />
+                                <TextBlock Text="{Binding PoleDevice.ADMSAliasLabel}" />
                                 <TextBox Text="{Binding ADMSAliasDisplay,Mode=Default}" IsReadOnly="True"/>
                             </StackPanel>
                             <StackPanel Orientation="Vertical" Visibility="{Binding PoleDevice.ShowSOMFields,Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <TextBlock Text="SOMSS:" />
+                                <TextBlock Text="{Binding PoleDevice.SOMSSLabel}" />
                                 <TextBox Text="{Binding SOMSSDisplay,Mode=Default}" IsReadOnly="True"/>
                             </StackPanel>
                             <StackPanel Orientation="Vertical" Visibility="{Binding PoleDevice.ShowSOMFields,Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <TextBlock Text="SOMCCT:" />
+                                <TextBlock Text="{Binding PoleDevice.SOMCCTLabel}" />
                                 <TextBox Text="{Binding SOMCCTDisplay,Mode=Default}" IsReadOnly="True"/>
                             </StackPanel>
                         </StackPanel>
@@ -422,19 +450,19 @@
                                         <TextBox Text="{Binding CCT_NO,Mode=OneTime}" IsReadOnly="True"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Vertical">
-                                        <TextBlock Text="ADMS Name:" />
+                                        <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
                                         <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Vertical">
-                                        <TextBlock Text="ADMS Alias:" />
+                                        <TextBlock Text="{Binding ADMSAliasLabel,Mode=OneTime}" />
                                         <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Vertical">
-                                        <TextBlock Text="SOM SS:" />
+                                        <TextBlock Text="{Binding SOMSSLabel,Mode=OneTime}" />
                                         <TextBox Text="{Binding SOMSS,Mode=OneTime}" IsReadOnly="True"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Vertical">
-                                        <TextBlock Text="SOM CCT:" />
+                                        <TextBlock Text="{Binding SOMCCTLabel,Mode=OneTime}" />
                                         <TextBox Text="{Binding SOMCCT,Mode=OneTime}" IsReadOnly="True"/>
                                     </StackPanel>
                                 </StackPanel>
@@ -466,11 +494,11 @@
                                                     <TextBox Text="{Binding ADDRESS,Mode=OneTime}" IsReadOnly="True"/>
                                                 </StackPanel>
                                                 <StackPanel Orientation="Vertical">
-                                                    <TextBlock Text="ADMS Name:" />
+                                                    <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
                                                     <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
                                                 </StackPanel>
                                                 <StackPanel Orientation="Vertical">
-                                                    <TextBlock Text="ADMS Alias:" />
+                                                    <TextBlock Text="{Binding ADMSAliasLabel,Mode=OneTime}" />
                                                     <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
                                                 </StackPanel>
                                             </StackPanel>
@@ -515,19 +543,19 @@
                                             <TextBox Text="{Binding CCT_NO,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Vertical">
-                                            <TextBlock Text="ADMS Name:" />
+                                            <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
                                             <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Vertical">
-                                            <TextBlock Text="ADMS Alias:" />
+                                            <TextBlock Text="{Binding ADMSAliasLabel,Mode=OneTime}" />
                                             <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Vertical">
-                                            <TextBlock Text="SOM SS:" />
+                                            <TextBlock Text="{Binding SOMSSLabel,Mode=OneTime}" />
                                             <TextBox Text="{Binding SOMSS,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Vertical">
-                                            <TextBlock Text="SOM CCT:" />
+                                            <TextBlock Text="{Binding SOMCCTLabel,Mode=OneTime}" />
                                             <TextBox Text="{Binding SOMCCT,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                     </StackPanel>
@@ -546,11 +574,11 @@
                                             <TextBox Text="{Binding GLOBALID,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Vertical">
-                                            <TextBlock Text="ADMS Name:" />
+                                            <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
                                             <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Vertical">
-                                            <TextBlock Text="ADMS Alias:" />
+                                            <TextBlock Text="{Binding ADMSAliasLabel,Mode=OneTime}" />
                                             <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                     </StackPanel>
@@ -592,19 +620,19 @@
                                             <TextBox Text="{Binding LEG,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Vertical">
-                                            <TextBlock Text="ADMS Name:" />
+                                            <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
                                             <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Vertical">
-                                            <TextBlock Text="ADMS Alias:" />
+                                            <TextBlock Text="{Binding ADMSAliasLabel,Mode=OneTime}" />
                                             <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Vertical">
-                                            <TextBlock Text="SOM SS:" />
+                                            <TextBlock Text="{Binding SOMSSLabel,Mode=OneTime}" />
                                             <TextBox Text="{Binding SOMSS,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Vertical">
-                                            <TextBlock Text="SOM CCT:" />
+                                            <TextBlock Text="{Binding SOMCCTLabel,Mode=OneTime}" />
                                             <TextBox Text="{Binding SOMCCT,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                     </StackPanel>
@@ -623,11 +651,11 @@
                                             <TextBox Text="{Binding GLOBALID,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Vertical">
-                                            <TextBlock Text="ADMS Name:" />
+                                            <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
                                             <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Vertical">
-                                            <TextBlock Text="ADMS Alias:" />
+                                            <TextBlock Text="{Binding ADMSAliasLabel,Mode=OneTime}" />
                                             <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                     </StackPanel>
@@ -646,11 +674,11 @@
                                             <TextBox Text="{Binding GLOBALID,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Vertical">
-                                            <TextBlock Text="ADMS Name:" />
+                                            <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
                                             <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Vertical">
-                                            <TextBlock Text="ADMS Alias:" />
+                                            <TextBlock Text="{Binding ADMSAliasLabel,Mode=OneTime}" />
                                             <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
                                         </StackPanel>
                                     </StackPanel>
@@ -700,19 +728,19 @@
                                     <TextBox Text="{Binding ADDRESS,Mode=OneTime}" IsReadOnly="True"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="ADMS Name:" />
+                                    <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
                                     <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="ADMS Alias:" />
+                                    <TextBlock Text="{Binding ADMSAliasLabel,Mode=OneTime}" />
                                     <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="SOM SS:" />
+                                    <TextBlock Text="{Binding SOMSSLabel,Mode=OneTime}" />
                                     <TextBox Text="{Binding SOMSS,Mode=OneTime}" IsReadOnly="True"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="SOM CCT:" />
+                                    <TextBlock Text="{Binding SOMCCTLabel,Mode=OneTime}" />
                                     <TextBox Text="{Binding SOMCCT,Mode=OneTime}" IsReadOnly="True"/>
                                 </StackPanel>
                             </StackPanel>
@@ -740,11 +768,11 @@
                                     <TextBox Text="{Binding ADDRESS,Mode=OneTime}" IsReadOnly="True"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="ADMS Name:" />
+                                    <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
                                     <TextBox Text="{Binding ADMS_Name,Mode=OneTime}" IsReadOnly="True"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="ADMS Alias:" />
+                                    <TextBlock Text="{Binding ADMSAliasLabel,Mode=OneTime}" />
                                     <TextBox Text="{Binding ADMS_Alias,Mode=OneTime}" IsReadOnly="True"/>
                                 </StackPanel>
                             </StackPanel>

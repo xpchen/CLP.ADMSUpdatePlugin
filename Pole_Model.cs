@@ -111,7 +111,7 @@ namespace CLP.ADMSUpdatePlugin
             ShowToPoleNoDropdown = false;
             ToPoleNoOptions = new List<string>();
             ShowSOMFields = true;
-            ShowCheckBoxs = true;
+            ShowCheckBoxs = false;
             EnableCircuit = true;
             EnableFromSubstation = true;
             EnableToSubstation = true;
@@ -289,6 +289,30 @@ namespace CLP.ADMSUpdatePlugin
                 if (this.ASSET_TYPE == "Subring Circuit Breaker") return ADMSUpdateHelper.GetADMSAliasForSubringCB(this);
                 return "";
             }
+        }
+
+        public string ADMSNameLabel =>
+            this.ADMS_Name == (this.Source.Attributes.ContainsKey("ADMS_Name") ? this.Source.Attributes["ADMS_Name"]?.ToString() : null)
+            ? "ADMS Name: (Same as current value)" : "ADMS Name:";
+
+        public string ADMSAliasLabel =>
+            this.ADMS_Alias == (this.Source.Attributes.ContainsKey("ADMS_Alias") ? this.Source.Attributes["ADMS_Alias"]?.ToString() : null)
+            ? "ADMS Alias: (Same as current value)" : "ADMS Alias:";
+
+        public string SOMSSLabel =>
+            this.SOMSS == (this.Source.Attributes.ContainsKey("SOM_SS") ? this.Source.Attributes["SOM_SS"]?.ToString() : null)
+            ? "SOMSS: (Same as current value)" : "SOMSS:";
+
+        public string SOMCCTLabel =>
+            this.SOMCCT == (this.Source.Attributes.ContainsKey("SOM_CCT") ? this.Source.Attributes["SOM_CCT"]?.ToString() : null)
+            ? "SOMCCT: (Same as current value)" : "SOMCCT:";
+
+        public void RefreshLabels()
+        {
+            NotifyPropertyChanged(nameof(ADMSNameLabel));
+            NotifyPropertyChanged(nameof(ADMSAliasLabel));
+            NotifyPropertyChanged(nameof(SOMSSLabel));
+            NotifyPropertyChanged(nameof(SOMCCTLabel));
         }
 
         public FeatureSnapshot Source { get; set; }

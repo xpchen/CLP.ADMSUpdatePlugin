@@ -748,6 +748,7 @@ namespace CLP.ADMSUpdatePlugin
                     this.ADMSAliasDisplay = this.PoleDevice.ADMS_Alias;
                     this.SOMSSDisplay = this.PoleDevice.SOMSS;
                     this.SOMCCTDisplay = this.PoleDevice.SOMCCT;
+                    this.PoleDevice.RefreshLabels();
                 }
                 else if(this.UpdateMode == ADMSUpdateMode.PoleCable)
                 {
@@ -982,21 +983,18 @@ namespace CLP.ADMSUpdatePlugin
             set => SetProperty(ref _selectionElement, value);
         }
 
-        public async Task TraceHVSwitchs(SS_TO_SS_Model hvSwitchModel,UtilityNetwork utilityNetwork, UtilityNetworkDefinition utilityNetworkDefinition, IEnumerable<Element> startElements)
+        public async Task TraceHVSwitchs(SS_TO_SS_Model hvSwitchModel,UtilityNetwork utilityNetwork, UtilityNetworkDefinition utilityNetworkDefinition)
         {
             var priorStatus = LoadingStatusText;
+            var startElement = hvSwitchModel.Source.Element;
             LoadingStatusText = "Tracing busbar...";
-            if (startElements.Count() == 2)
-            {
-                startElements.First().Terminal = startElements.First().AssetType.GetTerminalConfiguration().Terminals.FirstOrDefault(p => p.Name == "CB:Bus Side" || p.Name== "Source" || p.Name == "SS:S1");
-                startElements.Last().Terminal = startElements.Last().AssetType.GetTerminalConfiguration().Terminals.FirstOrDefault(p => p.Name == "CB:Line Side" || p.Name == "Load" || p.Name == "SS:S2");
-            }
+            startElement.Terminal = startElement.AssetType.GetTerminalConfiguration().Terminals.FirstOrDefault(p => p.Name == "CB:Bus Side" || p.Name == "Source" || p.Name == "SS:S1");
             try
             {
                 var features = await UtilityNetworkTraceRunner.RunConnectedTraceAsync(
                     utilityNetwork,
                     utilityNetworkDefinition,
-                    startElements,
+                    startElement,
                     new TraceRunRequest { TierName = "HV", Preset = TraceBarrierPreset.HvBusbar }
                     );
 
@@ -1007,7 +1005,7 @@ namespace CLP.ADMSUpdatePlugin
                     if (busBars.Any())
                     {
                         hvSwitchModel.Busbar = busBars.FirstOrDefault();
-                        String traceInfo = $"Trace BusBars INFO\nSWitch:[{startElements.First().ObjectID},{startElements.First().GlobalID}],BusBars :[{String.Join(",", busBars.Select(p => $"{p.ObjectID},{p.GlobalID}"))}]";
+                        String traceInfo = $"Trace BusBars INFO\nSWitch:[{startElement.ObjectID},{startElement.GlobalID}],BusBars :[{String.Join(",", busBars.Select(p => $"{p.ObjectID},{p.GlobalID}"))}]";
                         LoggerHelper.Info(traceInfo);
                     }
                     if (busNodes.Any())
@@ -1018,7 +1016,7 @@ namespace CLP.ADMSUpdatePlugin
             }
             catch (Exception e)
             {
-                String traceInfo = $"Fail to trace busbar\nSWitch:FROM [{startElements.First().ObjectID},{startElements.First().GlobalID}],TO[{startElements.Last().ObjectID},{startElements.Last().GlobalID}]";
+                String traceInfo = $"Fail to trace busbar\nSWitch:FROM [{startElement.ObjectID},{startElement.GlobalID}],TO[{hvSwitchModel.Target.Source.Element.ObjectID},{hvSwitchModel.Target.Source.Element.GlobalID}]";
                 MessageBox.Show("Fail to trace busbar:" + e.Message);
                 LoggerHelper.Error(e, traceInfo);
             }
@@ -1068,6 +1066,26 @@ namespace CLP.ADMSUpdatePlugin
             }
         }
 
+        private string _CableTerminatedSubstation;
+
+        public string CableTerminatedSubstation
+        {
+            get
+            {
+                return _CableTerminatedSubstation;
+            }
+            set
+            {
+                SetProperty(ref _CableTerminatedSubstation, value);
+            }
+        }
+
+        private string _cableTerminatedSubstationCurrent;
+
+        public string CableTerminatedSubstationLabel =>
+            this.CableTerminatedSubstation == _cableTerminatedSubstationCurrent
+            ? "Cable Terminated Substation: (Same as current value)" : "Cable Terminated Substation:";
+
         private int _CableTotal;
 
         public int CableTotal
@@ -1082,28 +1100,34 @@ namespace CLP.ADMSUpdatePlugin
             }
         }
 
-        private (string, string, int) GetCableADMSInfo(IEnumerable<FeatureSnapshot> cables, SS_TO_SS_Model first, SS_TO_SS_Model second) {
+        private (string, string, string, int) GetCableADMSInfo(IEnumerable<FeatureSnapshot> cables, SS_TO_SS_Model first, SS_TO_SS_Model second) {
 
             this.CableADMSAlias = string.Empty;
             this.CableADMSName = string.Empty;
+            this.CableTerminatedSubstation = string.Empty;
             this.CableTotal = 0;
             if (cables.Any())
             {
 
                 HashSet<string> cableADMSNames = new HashSet<string>();
                 HashSet<string> cableADMSAliases = new HashSet<string>();
+                HashSet<string> cableTerminatedSubstations = new HashSet<string>();
 
                 var cable = cables.FirstOrDefault();
+                _cableTerminatedSubstationCurrent = cable.Attributes.ContainsKey("terminated_substation")
+                    ? cable.Attributes["terminated_substation"]?.ToString() : null;
                 string cableADMSName = ADMSUpdateHelper.GetCableADMSName(first, second, cable, true);
                 string cableADMSAlias = ADMSUpdateHelper.GetCableADMSAlias(first, second, cable, true);
+                string cableTerminatedSubstation = ADMSUpdateHelper.GetCable_Terminal_Substation(first, second);
                 int cableTotal = cables.Count();
 
                 CableADMSAlias = cableADMSAlias;
                 CableADMSName = cableADMSName;
+                CableTerminatedSubstation = cableTerminatedSubstation;
                 CableTotal = cableTotal;
-                return (cableADMSName, cableADMSAlias, cableTotal);
+                return (cableADMSName, cableADMSAlias, cableTerminatedSubstation, cableTotal);
             }
-            return (string.Empty, string.Empty, 0);
+            return (string.Empty, string.Empty, string.Empty, 0);
         }
 
         public async Task NextStepAsync()
@@ -1290,6 +1314,15 @@ namespace CLP.ADMSUpdatePlugin
                                             MessageBox.Show("Cannot proceed: " + errorMessage);
                                             return;
                                         }
+                                        if (String.IsNullOrEmpty(first.PANEL_NO) || String.IsNullOrEmpty(second.PANEL_NO))
+                                        {
+                                            string panelErrorMessage = "";
+                                            if (String.IsNullOrEmpty(first.PANEL_NO))
+                                                panelErrorMessage += $"HV Switch([{first.Source.ObjectID},{first.Source.GlobalID}]) Panel Number is empty. ";
+                                            if (String.IsNullOrEmpty(second.PANEL_NO))
+                                                panelErrorMessage += $"HV Switch([{second.Source.ObjectID},{second.Source.GlobalID}]) Panel Number is empty. ";
+                                            MessageBox.Show("Remind: " + panelErrorMessage);
+                                        }
 
                                         if(first.SSNAME.CompareTo(second.SSNAME) > 0)
                                         {
@@ -1305,14 +1338,18 @@ namespace CLP.ADMSUpdatePlugin
                                             first.ResultType = resultType;
                                             String traceInfo = $"Trace INFO:Switch:[{first.Source.ObjectID},{first.Source.GlobalID}],Substation :[{second.SSCODE},{second.SSNAME}],Switch:[{second.Source.ObjectID},{second.Source.GlobalID}],Substation :[{second.SSCODE},{second.SSNAME}]";
                                             LoggerHelper.Info(traceInfo);
-                                            await TraceHVSwitchs(first, utilityNetwork, utilityNetworkDefinition, new Element[] {
-                                                first.Source.Element,
-                                                second.Source.Element
-                                            });
-                                            await TraceHVSwitchs(second, utilityNetwork, utilityNetworkDefinition, new Element[] {
-                                                second.Source.Element,
-                                                first.Source.Element
-                                            });
+                                            if (first.Source.AssetTypeName == "Circuit Breaker")
+                                                await TraceHVSwitchs(first, utilityNetwork, utilityNetworkDefinition);
+                                            if (second.Source.AssetTypeName == "Circuit Breaker")
+                                                await TraceHVSwitchs(second, utilityNetwork, utilityNetworkDefinition);
+                                            //await TraceHVSwitchs(first, utilityNetwork, utilityNetworkDefinition, new Element[] {
+                                            //    first.Source.Element,
+                                            //    second.Source.Element
+                                            //});
+                                            //await TraceHVSwitchs(second, utilityNetwork, utilityNetworkDefinition, new Element[] {
+                                            //    second.Source.Element,
+                                            //    first.Source.Element
+                                            //});
                                         }
                                         else
                                         {
@@ -1365,6 +1402,14 @@ namespace CLP.ADMSUpdatePlugin
                                         if (String.IsNullOrEmpty(second.SSNAME))
                                         {
                                             second.SSNAME = second.Source.Attributes["SS_NAME"]?.ToString();
+                                        }
+                                        if (first.Source.AssetTypeName == "Circuit Breaker")
+                                        {
+                                            await TraceHVSwitchs(first, utilityNetwork, utilityNetworkDefinition);
+                                        }
+                                        if (second.Source.AssetTypeName == "Circuit Breaker")
+                                        {
+                                            await TraceHVSwitchs(second, utilityNetwork, utilityNetworkDefinition);
                                         }
                                         second.ResultType = resultType;
                                         first.ResultType = resultType;
@@ -1708,6 +1753,7 @@ namespace CLP.ADMSUpdatePlugin
                                         this.PoleDevice = first;
                                         this.ShowSearchPanel = false;
                                         this.ShowPolePanel = true;
+                                        _ = RefreshADMS();
                                         break;
                                     }
                                     else if ((elementAssociation.FromElement.AssetGroup.Name == "Substation"
@@ -1762,6 +1808,7 @@ namespace CLP.ADMSUpdatePlugin
                                         this.PoleDevice = first;
                                         this.ShowSearchPanel = false;
                                         this.ShowPolePanel = true;
+                                        _ = RefreshADMS();
                                         break;
                                     }
                                 }

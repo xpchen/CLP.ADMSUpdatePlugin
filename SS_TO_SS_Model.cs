@@ -56,6 +56,52 @@ namespace CLP.ADMSUpdatePlugin
             }
         }
 
+        public string SOMSS
+        {
+            get
+            {
+                if (this.Source.AssetGroupName == "HV Switch")
+                    return ADMSUpdateHelper.GetCB_SOM_SS(this);
+                return "";
+            }
+        }
+
+        public string SOMCCT
+        {
+            get
+            {
+                if (this.Source.AssetGroupName == "HV Switch" && this.Target != null)
+                    return ADMSUpdateHelper.GetCB_SOM_CCT(this, this.Target);
+                return "";
+            }
+        }
+
+        public string ADMSNameLabel =>
+            this.ADMSName == (this.Source.Attributes.ContainsKey("ADMS_Name") ? this.Source.Attributes["ADMS_Name"]?.ToString() : null)
+            ? "ADMS Name: (Same as current value)" : "ADMS Name:";
+
+        public string ADMSAliasLabel =>
+            this.ADMSAlias == (this.Source.Attributes.ContainsKey("ADMS_Alias") ? this.Source.Attributes["ADMS_Alias"]?.ToString() : null)
+            ? "ADMS Alias: (Same as current value)" : "ADMS Alias:";
+
+        public string SOMSSLabel =>
+            this.SOMSS == (this.Source.Attributes.ContainsKey("SOM_SS") ? this.Source.Attributes["SOM_SS"]?.ToString() : null)
+            ? "SOMSS: (Same as current value)" : "SOMSS:";
+
+        public string SOMCCTLabel =>
+            this.SOMCCT == (this.Source.Attributes.ContainsKey("SOM_CCT") ? this.Source.Attributes["SOM_CCT"]?.ToString() : null)
+            ? "SOMCCT: (Same as current value)" : "SOMCCT:";
+
+        public string BusADMSNameLabel =>
+            this.Busbar != null && this.BusADMSName == (this.Busbar.Attributes.ContainsKey("ADMS_Name")
+                ? this.Busbar.Attributes["ADMS_Name"]?.ToString() : null)
+            ? "Bus ADMS Name: (Same as current value)" : "Bus ADMS Name:";
+
+        public string BusADMSAliasLabel =>
+            this.Busbar != null && this.BusADMSAlias == (this.Busbar.Attributes.ContainsKey("ADMS_Alias")
+                ? this.Busbar.Attributes["ADMS_Alias"]?.ToString() : null)
+            ? "Bus ADMS Alias: (Same as current value)" : "Bus ADMS Alias:";
+
         // BusADMSName logic (busbar/busnode)
         public string BusADMSName
         {
