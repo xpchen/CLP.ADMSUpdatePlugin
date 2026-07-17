@@ -57,13 +57,22 @@ namespace CLP.ADMSUpdatePlugin
             set => SetProperty(ref _showToPoleNoDropdown, value);
         }
 
-        private List<string> _toPoleNoOptions = new List<string>();
-        public List<string> ToPoleNoOptions
+        private PoleOptionList _toPoleNoOptions = new PoleOptionList();
+        public PoleOptionList ToPoleNoOptions
         {
             get => _toPoleNoOptions;
-            set => SetProperty(ref _toPoleNoOptions, value == null
-                ? new List<string>()
-                : value.Where(p => !string.Equals(p, _from_pole_num, StringComparison.OrdinalIgnoreCase)).ToList());
+            set
+            {
+                PoleOptionList filtered = new PoleOptionList();
+                if (value != null)
+                {
+                    foreach (var poleNum in value.Where(p => !string.Equals(p, _from_pole_num, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        filtered.Add(poleNum, value.GetCircuitName(poleNum));
+                    }
+                }
+                SetProperty(ref _toPoleNoOptions, filtered);
+            }
         }
 
         private bool _showSOMFields = true;
@@ -109,7 +118,7 @@ namespace CLP.ADMSUpdatePlugin
             ShowFromPoleNo = true;
             ShowToPoleNo = true;
             ShowToPoleNoDropdown = false;
-            ToPoleNoOptions = new List<string>();
+            ToPoleNoOptions = new PoleOptionList();
             ShowSOMFields = true;
             ShowCheckBoxs = false;
             EnableCircuit = true;
@@ -142,7 +151,18 @@ namespace CLP.ADMSUpdatePlugin
         public string TO_POLE_NUM
         {
             get => _to_pole_num;
-            set => SetProperty(ref _to_pole_num, value);
+            set
+            {
+                SetProperty(ref _to_pole_num, value);
+                TO_CIRCUIT_NAME = _toPoleNoOptions.GetCircuitName(value);
+            }
+        }
+
+        private string _to_circuit_name;
+        public string TO_CIRCUIT_NAME
+        {
+            get => _to_circuit_name;
+            set => SetProperty(ref _to_circuit_name, value);
         }
 
         private string _from_ss_name;
@@ -372,6 +392,24 @@ namespace CLP.ADMSUpdatePlugin
             {
                 this.FROM_SS_NUM = source.Attributes["SSNUM"]?.ToString();
             }
+        }
+    }
+
+    public class PoleOptionList : List<string>
+    {
+        private Dictionary<string, string> _circuitNames = new Dictionary<string, string>();
+
+        public void Add(string poleNum, string circuitName)
+        {
+            if (!this.Contains(poleNum))
+                base.Add(poleNum);
+            if (circuitName != null)
+                _circuitNames[poleNum] = circuitName;
+        }
+
+        public string GetCircuitName(string poleNum)
+        {
+            return _circuitNames.TryGetValue(poleNum, out var name) ? name : null;
         }
     }
 }

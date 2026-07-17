@@ -226,7 +226,11 @@ namespace CLP.ADMSUpdatePlugin
         {
             if (first.IsSingleDevice) return ReplaceMultipleSpaces($"P.{first.FROM_POLE_NUM}");
             else if (!first.IsSingleDevice && string.IsNullOrEmpty(first.TO_POLE_NUM)) return ReplaceMultipleSpaces($"{first.TO_SS_NAME?.Replace("S/S", "")}");
-            return ReplaceMultipleSpaces($"{first.CIRCUIT_NAME} P.{first.TO_POLE_NUM}");
+            else if (!first.IsSingleDevice 
+                && ReplaceMultipleSpaces(first.CIRCUIT_NAME) == ReplaceMultipleSpaces(first.TO_CIRCUIT_NAME) 
+                && !string.IsNullOrEmpty(first.TO_POLE_NUM)) 
+                return ReplaceMultipleSpaces($"P.{first.TO_POLE_NUM}");
+            return ReplaceMultipleSpaces($"{first.TO_CIRCUIT_NAME} P.{first.TO_POLE_NUM}");
         }
 
         public static string GetPMS_SOM_SS(Pole_Model first)

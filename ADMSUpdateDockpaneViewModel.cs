@@ -1529,8 +1529,8 @@ namespace CLP.ADMSUpdatePlugin
                                         Row txAttributes = null;
                                         string inPoleType = null;
                                         FeatureSnapshot tracedTransformer = null;
-                                        List<string> tracedIsolatorPoleNums = new List<string>();
-                                        List<string> tracedFusePoleNums = new List<string>();
+                                        PoleOptionList tracedIsolatorPoleNums = new PoleOptionList();
+                                        PoleOptionList tracedFusePoleNums = new PoleOptionList();
                                         var isTxOrPMSInPole = false;
                                         bool isolatorTraceHasSubringCB = true; 
                                         string isolatorToSsName = null;
@@ -1576,14 +1576,14 @@ namespace CLP.ADMSUpdatePlugin
                                                     startElement,
                                                     new TraceRunRequest { TierName = "HV", TerminalName = "Node 2", Preset = TraceBarrierPreset.HvFuse },
                                                     features => HighlightPathOnMapAsync(utilityNetwork, features));
-                                                tracedFusePoleNums = traceFeatures
+                                                tracedFusePoleNums = new PoleOptionList();
+                                                tracedFusePoleNums.AddRange(traceFeatures
                                                     .Where(p => p.NetworkSourceName == "StructureJunction"
                                                         && p.AssetGroupName == "Support Structure"
                                                         && p.AssetTypeName == "HV Pole")
                                                     .Select(p => p.GetString("POLENUM"))
                                                     .Where(p => !string.IsNullOrEmpty(p))
-                                                    .Distinct()
-                                                    .ToList();
+                                                    .Distinct());
                                                 var transformers = traceFeatures.Where(p => p.AssetGroupName == "Transformer").ToList();
                                                 if (!transformers.Any())
                                                 {
@@ -1625,14 +1625,19 @@ namespace CLP.ADMSUpdatePlugin
                                                     new TraceRunRequest { TierName = "HV", TerminalName = "SS:S1", Preset = TraceBarrierPreset.HvIsolatorLike },
                                                     features => HighlightPathOnMapAsync(utilityNetwork, features));
                                                 isolatorTraceHasSubringCB = traceFeatures.Any(p => p.AssetTypeName == "Subring Circuit Breaker" || p.AssetTypeName == "Switch");
-                                                tracedIsolatorPoleNums = traceFeatures
-                                                    .Where(p => p.NetworkSourceName == "StructureJunction"
-                                                        && p.AssetGroupName == "Support Structure"
-                                                        && p.AssetTypeName == "HV Pole")
-                                                    .Select(p => p.GetString("POLENUM"))
-                                                    .Where(p => !string.IsNullOrEmpty(p))
-                                                    .Distinct()
-                                                    .ToList();
+                                                tracedIsolatorPoleNums = new PoleOptionList();
+                                                foreach (var pf in traceFeatures.Where(p => p.NetworkSourceName == "StructureJunction"
+                                                    && p.AssetGroupName == "Support Structure"
+                                                    && p.AssetTypeName == "HV Pole"))
+                                                {
+                                                    string poleNum = pf.GetString("POLENUM");
+                                                    if (!string.IsNullOrEmpty(poleNum))
+                                                    {
+                                                        string circuitName = pf.Attributes.ContainsKey("CIRCUITNAME")
+                                                            ? pf.Attributes["CIRCUITNAME"]?.ToString() : null;
+                                                        tracedIsolatorPoleNums.Add(poleNum, circuitName);
+                                                    }
+                                                }
 
                                                 if (isolatorTraceHasSubringCB)
                                                 {
@@ -1780,7 +1785,7 @@ namespace CLP.ADMSUpdatePlugin
                                         firstSwitchFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, elementAssociation.ToElement.AssetGroup.Name, elementAssociation.ToElement.GlobalID);
                                         firstSubstationFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, elementAssociation.FromElement.AssetGroup.Name, elementAssociation.FromElement.GlobalID);
 
-                                        List<string> tracedSubringPoleNums = new List<string>();
+                                        PoleOptionList tracedSubringPoleNums = new PoleOptionList();
                                         LoadingStatusText = "Running trace...";
                                         var subringTraceFeatures = await UtilityNetworkTraceRunner.RunConnectedTraceAsync(
                                             utilityNetwork,
@@ -1788,14 +1793,14 @@ namespace CLP.ADMSUpdatePlugin
                                             startElement,
                                             new TraceRunRequest { TierName = "HV", TerminalName = "CB:Line Side", Preset = TraceBarrierPreset.HvIsolatorLike },
                                             features => HighlightPathOnMapAsync(utilityNetwork, features));
-                                        tracedSubringPoleNums = subringTraceFeatures
+                                        tracedSubringPoleNums = new PoleOptionList();
+                                        tracedSubringPoleNums.AddRange(subringTraceFeatures
                                             .Where(p => p.NetworkSourceName == "StructureJunction"
                                                 && p.AssetGroupName == "Support Structure"
                                                 && p.AssetTypeName == "HV Pole")
                                             .Select(p => p.GetString("POLENUM"))
                                             .Where(p => !string.IsNullOrEmpty(p))
-                                            .Distinct()
-                                            .ToList();
+                                            .Distinct());
 
                                         first = new Pole_Model(firstSwitchFeature, utilityNetwork);
                                         first.FROM_SS_NAME = firstSubstationFeature.Attributes["SSNAME"]?.ToString();
