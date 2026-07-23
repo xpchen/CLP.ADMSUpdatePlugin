@@ -1635,7 +1635,9 @@ namespace CLP.ADMSUpdatePlugin
                                                     {
                                                         string circuitName = pf.Attributes.ContainsKey("CIRCUITNAME")
                                                             ? pf.Attributes["CIRCUITNAME"]?.ToString() : null;
-                                                        tracedIsolatorPoleNums.Add(poleNum, circuitName);
+                                                        string circuitId = pf.Attributes.ContainsKey("CIRCUITID")
+                                                            ? pf.Attributes["CIRCUITID"]?.ToString() : null;
+                                                        tracedIsolatorPoleNums.Add(poleNum, circuitName, circuitId);
                                                     }
                                                 }
 

@@ -289,6 +289,14 @@
                                         </ComboBox>
                                     </StackPanel>
                                 </StackPanel>
+                                <StackPanel Orientation="Vertical" Visibility="{Binding ShowToCircuitFields,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <TextBlock Text="To Circuit Name:" />
+                                    <TextBox Text="{Binding TO_CIRCUIT_NAME,Mode=Default}" IsReadOnly="False" IsEnabled="{Binding EnableCircuit}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical" Visibility="{Binding ShowToCircuitFields,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <TextBlock Text="To Circuit ID:" />
+                                    <TextBox Text="{Binding TO_CIRCUIT_ID,Mode=Default}" IsReadOnly="False" IsEnabled="{Binding EnableCircuit}"/>
+                                </StackPanel>
                                 <StackPanel Orientation="Vertical" Visibility="{Binding ShowFromSubstationFields,Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <TextBlock Text="SS Name (Source):" />
                                     <TextBox Text="{Binding FROM_SS_NAME,Mode=Default}" IsReadOnly="False" IsEnabled="{Binding EnableFromSubstation}"/>

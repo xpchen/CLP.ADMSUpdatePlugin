@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using static ArcGIS.Desktop.Editing.Templates.EditingGroupTemplate;
 
 namespace CLP.ADMSUpdatePlugin
 {
@@ -88,6 +89,12 @@ namespace CLP.ADMSUpdatePlugin
             if (des.Source.AssetGroupName == "Transformer")
             {
                 textB += String.IsNullOrEmpty(des.TX_NO) ? " D1" : $" D{des.TX_NO}";
+                //if (!string.IsNullOrEmpty(des.TX_NO)
+                //    && int.TryParse(des.TX_NO, out int tx_integer)
+                //    && int.Parse(des.TX_NO) >= 10)
+                //    textB += $" D{tx_integer.ToString("X")}";
+                //else 
+                //    textB += String.IsNullOrEmpty(des.TX_NO) ? " D1" : $" D{des.TX_NO}";
             }
             if (!String.IsNullOrEmpty(des.BB_NUMBER) && des.Source.AssetGroupName != "Transformer")
             {
@@ -370,6 +377,10 @@ namespace CLP.ADMSUpdatePlugin
             // ADMS Alias for Transformer
             string substationSource = first.SSCODE.PadRight(7);
             string transformerPart = string.IsNullOrEmpty(first.TX_NO) ? "D1" : $"D{first.TX_NO}";
+            if(!string.IsNullOrEmpty(first.TX_NO) 
+                && int.TryParse(first.TX_NO, out int tx_integer) 
+                && int.Parse(first.TX_NO) >= 10)
+                transformerPart = $"D{tx_integer.ToString("X")}";
             string part2 = $"{transformerPart}".PadRight(15);
             string part3 = "LOAD".PadRight(8);
             return $"{substationSource}{part2}{part3}";
@@ -383,7 +394,12 @@ namespace CLP.ADMSUpdatePlugin
             else
                 part1 = ReplaceMultipleSpaces($"{first.CIRCUIT_NAME}").PadRight(26);
             part2 = $"P{first.FROM_POLE_NUM}";
-            if (!string.IsNullOrEmpty(first.TO_POLE_NUM)) part2 += $"-{first.TO_POLE_NUM}";
+            if (!string.IsNullOrEmpty(first.TO_POLE_NUM))
+            {
+                if (ReplaceMultipleSpaces(first.CIRCUIT_NAME) != ReplaceMultipleSpaces(first.TO_CIRCUIT_NAME)) 
+                    part2 += $"-{first.TO_CIRCUIT_NAME} P{first.TO_POLE_NUM}";
+                else part2 += $"-{first.TO_POLE_NUM}";
+            }
             else part2 += $"-{first.TO_SS_NAME?.Replace("S/S", "")}";
             part2 = ReplaceMultipleSpaces(part2).PadRight(41);
             part3 = $"ISOL".PadRight(13);
@@ -396,13 +412,15 @@ namespace CLP.ADMSUpdatePlugin
             if (first.IsTxOrPMSInPole)
                 part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NUM}").PadRight(7);
             else
-                part1 = ReplaceMultipleSpaces($"{first.CIRCUIT_ID}").PadRight(7);
+                part1 = ReplaceMultipleSpaces($"L{first.CIRCUIT_ID}").PadRight(7);
             part2 = $"P{first.FROM_POLE_NUM}";
             if (!string.IsNullOrEmpty(first.TO_POLE_NUM)) 
             {
                 var splitPoleNum = first.TO_POLE_NUM?.Split("/");
                 if (splitPoleNum.Length >= 2 && first.FROM_POLE_NUM == splitPoleNum[0]) 
                     part2 += $"-{splitPoleNum[1]}";
+                else if (ReplaceMultipleSpaces(first.CIRCUIT_NAME) != ReplaceMultipleSpaces(first.TO_CIRCUIT_NAME))
+                    part2 += $"-L{first.TO_CIRCUIT_ID} P{first.TO_POLE_NUM}";
                 else part2 += $"-{first.TO_POLE_NUM}";
             }
             else part2 += $"-{first.TO_SS_NUM}";
@@ -432,7 +450,7 @@ namespace CLP.ADMSUpdatePlugin
             if (first.IsTxOrPMSInPole)
                 part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NUM}").PadRight(7);
             else
-                part1 = ReplaceMultipleSpaces($"{first.CIRCUIT_ID}").PadRight(7);
+                part1 = ReplaceMultipleSpaces($"L{first.CIRCUIT_ID}").PadRight(7);
             part2 = $"P{first.FROM_POLE_NUM}";
             if (first.IsTxOrPMSInPole && first.InPoleType != "PMS") part2 += $"-{first.FROM_SS_NUM} P/M";
             else
