@@ -60,6 +60,19 @@ namespace CLP.ADMSUpdatePlugin
         public bool ShowToCircuitFields =>
             ASSET_TYPE == "Isolator" && !string.IsNullOrEmpty(TO_CIRCUIT_NAME) && TO_CIRCUIT_NAME != CIRCUIT_NAME;
 
+        private List<FeatureSnapshot> _cableFeatures;
+        public List<FeatureSnapshot> CableFeatures
+        {
+            get => _cableFeatures;
+            set
+            {
+                SetProperty(ref _cableFeatures, value);
+                NotifyPropertyChanged(nameof(ShowCableFields));
+            }
+        }
+
+        public bool ShowCableFields => CableFeatures != null && CableFeatures.Count > 0;
+
         private PoleOptionList _toPoleNoOptions = new PoleOptionList();
         public PoleOptionList ToPoleNoOptions
         {

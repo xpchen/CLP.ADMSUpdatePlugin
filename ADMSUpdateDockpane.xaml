@@ -341,6 +341,12 @@
                                 <TextBlock Text="{Binding PoleDevice.SOMCCTLabel}" />
                                 <TextBox Text="{Binding SOMCCTDisplay,Mode=Default}" IsReadOnly="True"/>
                             </StackPanel>
+                            <StackPanel Orientation="Vertical" Visibility="{Binding PoleDevice.ShowCableFields,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="Cable/OHL ADMS Name:" />
+                                <TextBox Text="{Binding CableADMSNameDisplay,Mode=Default}" IsReadOnly="True"/>
+                                <TextBlock Text="Cable/OHL ADMS Alias:" />
+                                <TextBox Text="{Binding CableADMSAliasDisplay,Mode=Default}" IsReadOnly="True"/>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Grid>

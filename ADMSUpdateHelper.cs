@@ -545,7 +545,7 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetADMSAliasForPoleCable(string circuitID, string objectID)
         {
-            string part1 = circuitID?.PadRight(22);
+            string part1 = $"L{circuitID}".PadRight(22);
             string part2 = "";
             string part3 = $"L{objectID}".PadRight(8);
             return $"{part1}{part2}{part3}";

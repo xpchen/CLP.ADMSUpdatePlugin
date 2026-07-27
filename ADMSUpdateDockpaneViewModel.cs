@@ -37,6 +37,20 @@ namespace CLP.ADMSUpdatePlugin
             set => SetProperty(ref _admsAliasDisplay, value);
         }
 
+        private string _cableADMSNameDisplay;
+        public string CableADMSNameDisplay
+        {
+            get => _cableADMSNameDisplay;
+            set => SetProperty(ref _cableADMSNameDisplay, value);
+        }
+
+        private string _cableADMSAliasDisplay;
+        public string CableADMSAliasDisplay
+        {
+            get => _cableADMSAliasDisplay;
+            set => SetProperty(ref _cableADMSAliasDisplay, value);
+        }
+
         private string _somssDisplay;
 
         public string SOMSSDisplay
@@ -456,7 +470,29 @@ namespace CLP.ADMSUpdatePlugin
                         }
 
                         editOp.Modify(insp);
-                        
+
+                        // Update Cable/OHL features from trace
+                        if (this.PoleDevice.CableFeatures != null && this.PoleDevice.CableFeatures.Count > 0)
+                        {
+                            foreach (var cableFeature in this.PoleDevice.CableFeatures)
+                            {
+                                var cableTable = un.GetTable(cableFeature.Element.NetworkSource);
+                                insp.Load(cableTable, cableFeature.ObjectID);
+
+                                string cableADMSName = ADMSUpdateHelper.GetADMSNameForPoleCable(
+                                    this.PoleDevice.CIRCUIT_NAME, $"{cableFeature.ObjectID}");
+                                string cableADMSAlias = ADMSUpdateHelper.GetADMSAliasForPoleCable(
+                                    this.PoleDevice.CIRCUIT_ID, $"{cableFeature.ObjectID}");
+
+                                LoggerHelper.Info($"Updating Cable/OHL (ObjectID: {cableFeature.ObjectID})");
+                                LoggerHelper.Info($"ADMS_Name: {cableADMSName}, ADMS_Alias: {cableADMSAlias}");
+
+                                insp["ADMS_Name"] = cableADMSName;
+                                insp["ADMS_Alias"] = cableADMSAlias;
+                                editOp.Modify(insp);
+                            }
+                        }
+
                         if (!editOp.IsEmpty)
                         {
                             if (editOp.Execute())
@@ -732,6 +768,8 @@ namespace CLP.ADMSUpdatePlugin
             this.ADMSNameDisplay = "";
             this.SOMCCTDisplay = "";
             this.SOMSSDisplay = "";
+            this.CableADMSNameDisplay = "";
+            this.CableADMSAliasDisplay = "";
             this.UpdteCableADMSEnabled = false;
         }
 
@@ -749,6 +787,14 @@ namespace CLP.ADMSUpdatePlugin
                     this.SOMSSDisplay = this.PoleDevice.SOMSS;
                     this.SOMCCTDisplay = this.PoleDevice.SOMCCT;
                     this.PoleDevice.RefreshLabels();
+
+                    if (this.PoleDevice.ShowCableFields)
+                    {
+                        this.CableADMSNameDisplay = ADMSUpdateHelper.GetADMSNameForPoleCable(
+                            this.PoleDevice.CIRCUIT_NAME, "XXXXXX");
+                        this.CableADMSAliasDisplay = ADMSUpdateHelper.GetADMSAliasForPoleCable(
+                            this.PoleDevice.CIRCUIT_ID, "XXXXXX");
+                    }
                 }
                 else if(this.UpdateMode == ADMSUpdateMode.PoleCable)
                 {
@@ -1507,6 +1553,7 @@ namespace CLP.ADMSUpdatePlugin
                                 LoadingStatusText = "Getting associations...";
                                 var elementAssociations = utilityNetwork.GetAssociations(startElement);
                                 Pole_Model first = null;
+                                List<FeatureSnapshot> cableFeatures = null;
                                 bool isSingleDevice = false;
                                 foreach (var elementAssociation in elementAssociations)
                                 {
@@ -1535,6 +1582,7 @@ namespace CLP.ADMSUpdatePlugin
                                         bool isolatorTraceHasSubringCB = true; 
                                         string isolatorToSsName = null;
                                         string isolatorToSsNum = null;
+                                        PathBuildResult isolatorPathResult = null;
                                         firstSwitchFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, elementAssociation.ToElement.AssetGroup.Name, elementAssociation.ToElement.GlobalID);
                                         firstPoleFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, elementAssociation.FromElement.AssetGroup.Name, elementAssociation.FromElement.GlobalID);
 
@@ -1584,6 +1632,10 @@ namespace CLP.ADMSUpdatePlugin
                                                     .Select(p => p.GetString("POLENUM"))
                                                     .Where(p => !string.IsNullOrEmpty(p))
                                                     .Distinct());
+                                                cableFeatures = traceFeatures.Where(p =>
+                                                    p.AssetGroupName == "HV Line" &&
+                                                    (p.AssetTypeName == "Cable" || p.AssetTypeName == "Overhead Line"))
+                                                    .ToList();
                                                 var transformers = traceFeatures.Where(p => p.AssetGroupName == "Transformer").ToList();
                                                 if (!transformers.Any())
                                                 {
@@ -1618,7 +1670,8 @@ namespace CLP.ADMSUpdatePlugin
                                                 }
 
                                                 LoadingStatusText = "Running trace...";
-                                                var traceFeatures = await UtilityNetworkTraceRunner.RunConnectedTraceAsync(
+                                                IReadOnlyList<FeatureSnapshot> traceFeatures;
+                                                (traceFeatures, isolatorPathResult) = await UtilityNetworkTraceRunner.ExportConnectedTraceAsync(
                                                     utilityNetwork,
                                                     utilityNetworkDefinition,
                                                     startElement,
@@ -1640,6 +1693,11 @@ namespace CLP.ADMSUpdatePlugin
                                                         tracedIsolatorPoleNums.Add(poleNum, circuitName, circuitId);
                                                     }
                                                 }
+
+                                                cableFeatures = traceFeatures.Where(p =>
+                                                    p.AssetGroupName == "HV Line" &&
+                                                    (p.AssetTypeName == "Cable" || p.AssetTypeName == "Overhead Line"))
+                                                    .ToList();
 
                                                 if (isolatorTraceHasSubringCB)
                                                 {
@@ -1723,6 +1781,48 @@ namespace CLP.ADMSUpdatePlugin
                                                 first.ShowToPoleNo = true;
                                                 first.ShowToPoleNoDropdown = true;
                                                 first.ToPoleNoOptions = tracedIsolatorPoleNums;
+
+                                                // Auto-determine TO_POLE_NUM from trace path
+                                                try
+                                                {
+                                                    if (isolatorPathResult?.Paths != null && isolatorPathResult.Paths.Count > 0)
+                                                    {
+                                                        foreach (var node in isolatorPathResult.Paths[0].Nodes)
+                                                        {
+                                                            // Skip the starting point feature
+                                                            if (node.GlobalID == firstSwitchFeature.GlobalID)
+                                                                continue;
+
+                                                            // Only check features with non-zero ASSOCIATIONSTATUS
+                                                            if ((short)node.AssociationStatus == 0)
+                                                                continue;
+
+                                                            // Get the feature's associations and find its containing pole
+                                                            var nodeAssociations = utilityNetwork.GetAssociations(node.Element);
+                                                            var poleAssoc = nodeAssociations.FirstOrDefault(a =>
+                                                                a.FromElement.AssetGroup.Name == "Support Structure"
+                                                                && a.ToElement.GlobalID == node.Element.GlobalID);
+
+                                                            if (poleAssoc != null && poleAssoc.FromElement.GlobalID != firstPoleFeature.GlobalID)
+                                                            {
+                                                                // Found the "to" pole — get its POLENUM
+                                                                var toPoleFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(
+                                                                    utilityNetwork, "Support Structure", poleAssoc.FromElement.GlobalID);
+                                                                if (toPoleFeature != null)
+                                                                {
+                                                                    string toPoleNum = toPoleFeature.GetString("POLENUM");
+                                                                    if (!string.IsNullOrEmpty(toPoleNum))
+                                                                        first.TO_POLE_NUM = toPoleNum;
+                                                                }
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                catch (Exception ex)
+                                                {
+                                                    LoggerHelper.Error(ex, "Failed to auto-determine TO_POLE_NUM from trace path");
+                                                }
                                             }
                                         }
                                         if (txAttributes != null)
@@ -1757,6 +1857,7 @@ namespace CLP.ADMSUpdatePlugin
                                             }
                                         }
                                         if (!first.IsTxOrPMSInPole && first.ASSET_TYPE == "Isolator") first.ShowFromSubstationFields = false;
+                                        first.CableFeatures = cableFeatures;
                                         this.PoleDevice = first;
                                         this.ShowSearchPanel = false;
                                         this.ShowPolePanel = true;
@@ -1804,6 +1905,11 @@ namespace CLP.ADMSUpdatePlugin
                                             .Where(p => !string.IsNullOrEmpty(p))
                                             .Distinct());
 
+                                        cableFeatures = subringTraceFeatures.Where(p =>
+                                            p.AssetGroupName == "HV Line" &&
+                                            (p.AssetTypeName == "Cable" || p.AssetTypeName == "Overhead Line"))
+                                            .ToList();
+
                                         first = new Pole_Model(firstSwitchFeature, utilityNetwork);
                                         first.FROM_SS_NAME = firstSubstationFeature.Attributes["SSNAME"]?.ToString();
                                         first.FROM_SS_NUM = firstSubstationFeature.Attributes["SSNUM"]?.ToString();
@@ -1811,7 +1917,8 @@ namespace CLP.ADMSUpdatePlugin
                                         first.Source = firstSwitchFeature;
                                         first.Pole = firstSubstationFeature;
                                         first.ToPoleNoOptions = tracedSubringPoleNums;
-                                        
+                                        first.CableFeatures = cableFeatures;
+
                                         this.PoleDevice = first;
                                         this.ShowSearchPanel = false;
                                         this.ShowPolePanel = true;

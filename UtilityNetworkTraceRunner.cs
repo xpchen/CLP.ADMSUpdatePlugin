@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using CLP.ADMSUpdatePlugin;
 
 public enum TraceBarrierPreset
 {
@@ -98,6 +99,56 @@ public static class UtilityNetworkTraceRunner
             await highlight(features);
         }
         return features;
+    }
+
+    public static (IReadOnlyList<FeatureSnapshot> features, PathBuildResult pathResult) ExportConnectedTrace(
+        UtilityNetwork utilityNetwork,
+        UtilityNetworkDefinition utilityNetworkDefinition,
+        Element startElement,
+        TraceRunRequest request)
+    {
+        ApplyTerminal(startElement, request.TerminalName);
+        TraceConfiguration cfg = BuildConfiguration(utilityNetworkDefinition, request);
+        using TraceManager traceManager = utilityNetwork.GetTraceManager();
+        TraceArgument traceArgument = new TraceArgument(new List<Element>() { startElement }) { Configuration = cfg };
+        Tracer tracer = traceManager.GetTracer<ConnectedTracer>();
+        IReadOnlyList<Result> traceResults = tracer.Trace(traceArgument);
+        var features = new SpatialSubgraphExtractor(utilityNetwork).ExtractFromResults(traceResults).FeatureByGlobalId.Values.ToList();
+
+        PathBuildResult pathResult = null;
+        try
+        {
+            var featureSnapshots = features.ToDictionary(f => f.GlobalID, f => f);
+            pathResult = ConnectivityPathBuilder.BuildFromConnectivityExport(
+                (ConnectedTracer)tracer, traceArgument, startElement.GlobalID, featureSnapshots,
+                opt: new ConnectivityPathBuilder.Options
+                {
+                    EnableDebugLog = true,
+                    Logger = msg => LoggerHelper.Info(msg),
+                    DeleteTempFile = true
+                });
+        }
+        catch (Exception ex)
+        {
+            LoggerHelper.Error(ex, "Failed to export Isolator trace connectivity JSON");
+        }
+
+        return (features, pathResult);
+    }
+
+    public static async Task<(IReadOnlyList<FeatureSnapshot> features, PathBuildResult pathResult)> ExportConnectedTraceAsync(
+        UtilityNetwork utilityNetwork,
+        UtilityNetworkDefinition utilityNetworkDefinition,
+        Element startElement,
+        TraceRunRequest request,
+        Func<IEnumerable<FeatureSnapshot>, Task> highlight = null)
+    {
+        var (features, pathResult) = ExportConnectedTrace(utilityNetwork, utilityNetworkDefinition, startElement, request);
+        if (highlight != null)
+        {
+            await highlight(features);
+        }
+        return (features, pathResult);
     }
 
     private static void ApplyPreset(UtilityNetworkDefinition def, TraceConfiguration cfg, TraceBarrierPreset preset)
