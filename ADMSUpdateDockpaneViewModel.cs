@@ -132,6 +132,9 @@ namespace CLP.ADMSUpdatePlugin
                 case "UpdateMode":
                     {
                         this.SelectionElements = [];
+                        this.SelectionGridItems = new List<GridTableItem>();
+                        this.SelectedGridItem = null;
+                        this.SelectionElement = null;
                         switch (this.UpdateMode)
                         {
                             case ADMSUpdateMode.SS_TO_SS:
@@ -771,6 +774,8 @@ namespace CLP.ADMSUpdatePlugin
             this.CableADMSNameDisplay = "";
             this.CableADMSAliasDisplay = "";
             this.UpdteCableADMSEnabled = false;
+            this.SelectionGridItems = new List<GridTableItem>();
+            this.SelectedGridItem = null;
         }
 
         public async Task RefreshADMS()
@@ -909,6 +914,28 @@ namespace CLP.ADMSUpdatePlugin
             set => SetProperty(ref _selectionElements, value);
         }
 
+        private List<GridTableItem> _selectionGridItems = new List<GridTableItem>();
+        public List<GridTableItem> SelectionGridItems
+        {
+            get => _selectionGridItems;
+            set => SetProperty(ref _selectionGridItems, value);
+        }
+
+        private GridTableItem _selectedGridItem;
+        public GridTableItem SelectedGridItem
+        {
+            get => _selectedGridItem;
+            set
+            {
+                SetProperty(ref _selectedGridItem, value);
+                if (value != null)
+                {
+                    this.SelectionElement = this.SelectionElements
+                        .FirstOrDefault(e => e.ObjectID == value.ObjectID);
+                }
+            }
+        }
+
 
         public async void OnMapSelectionChanged(MapSelectionChangedEventArgs args)
         {
@@ -920,6 +947,7 @@ namespace CLP.ADMSUpdatePlugin
                 {
                     var mapSelectionDict = args.Selection.ToDictionary();
                     HashSet<Element> selectionElements = new HashSet<Element>();
+                    List<GridTableItem> gridItems = new List<GridTableItem>();
                     foreach (var mapMemberSelection in mapSelectionDict)
                     {
                         try
@@ -938,6 +966,14 @@ namespace CLP.ADMSUpdatePlugin
                                             if (element.AssetGroup.Name == "HV Line" && (element.AssetType.Name == "Connector" || element.AssetType.Name == "Cable"))
                                             {
                                                 selectionElements.Add(element);
+                                                gridItems.Add(new GridTableItem
+                                                {
+                                                    ObjectID = element.ObjectID,
+                                                    AssetGroupName = element.AssetGroup.Name,
+                                                    AssetTypeName = element.AssetType.Name,
+                                                    LastEditedDate = cursor.Current["CLP_Last_Edited_Date"]?.ToString() ?? "",
+                                                    LastEditedUser = cursor.Current["CLP_Last_Edited_User"]?.ToString() ?? ""
+                                                });
                                             }
                                         }
                                     }
@@ -952,6 +988,14 @@ namespace CLP.ADMSUpdatePlugin
                                             if (element.AssetGroup.Name == "HV Switch" && (element.AssetType.Name == "Circuit Breaker" || element.AssetType.Name == "Source Circuit Breaker"))
                                             {
                                                 selectionElements.Add(element);
+                                                gridItems.Add(new GridTableItem
+                                                {
+                                                    ObjectID = element.ObjectID,
+                                                    AssetGroupName = element.AssetGroup.Name,
+                                                    AssetTypeName = element.AssetType.Name,
+                                                    LastEditedDate = cursor.Current["CLP_Last_Edited_Date"]?.ToString() ?? "",
+                                                    LastEditedUser = cursor.Current["CLP_Last_Edited_User"]?.ToString() ?? ""
+                                                });
                                             }
                                         }
                                     }
@@ -969,6 +1013,14 @@ namespace CLP.ADMSUpdatePlugin
                                             || element.AssetGroup.Name == "HV Switch" && element.AssetType.Name == "Subring Circuit Breaker")
                                             {
                                                 selectionElements.Add(element);
+                                                gridItems.Add(new GridTableItem
+                                                {
+                                                    ObjectID = element.ObjectID,
+                                                    AssetGroupName = element.AssetGroup.Name,
+                                                    AssetTypeName = element.AssetType.Name,
+                                                    LastEditedDate = cursor.Current["CLP_Last_Edited_Date"]?.ToString() ?? "",
+                                                    LastEditedUser = cursor.Current["CLP_Last_Edited_User"]?.ToString() ?? ""
+                                                });
                                             }
                                         }
                                     }
@@ -983,6 +1035,14 @@ namespace CLP.ADMSUpdatePlugin
                                             if (element.AssetGroup.Name == "HV Line" && (element.AssetType.Name == "Cable" || element.AssetType.Name == "Overhead Line"))
                                             {
                                                 selectionElements.Add(element);
+                                                gridItems.Add(new GridTableItem
+                                                {
+                                                    ObjectID = element.ObjectID,
+                                                    AssetGroupName = element.AssetGroup.Name,
+                                                    AssetTypeName = element.AssetType.Name,
+                                                    LastEditedDate = cursor.Current["CLP_Last_Edited_Date"]?.ToString() ?? "",
+                                                    LastEditedUser = cursor.Current["CLP_Last_Edited_User"]?.ToString() ?? ""
+                                                });
                                             }
                                         }
                                     }
@@ -999,6 +1059,14 @@ namespace CLP.ADMSUpdatePlugin
                                                 (element.AssetGroup.Name == "LV Switch" && element.AssetType.Name == "Switch"))
                                             {
                                                 selectionElements.Add(element);
+                                                gridItems.Add(new GridTableItem
+                                                {
+                                                    ObjectID = element.ObjectID,
+                                                    AssetGroupName = element.AssetGroup.Name,
+                                                    AssetTypeName = element.AssetType.Name,
+                                                    LastEditedDate = cursor.Current["CLP_Last_Edited_Date"]?.ToString() ?? "",
+                                                    LastEditedUser = cursor.Current["CLP_Last_Edited_User"]?.ToString() ?? ""
+                                                });
                                             }
                                         }
                                     }
@@ -1013,9 +1081,10 @@ namespace CLP.ADMSUpdatePlugin
                         }
                     }
                     this.SelectionElements = selectionElements.ToList();
-                    if (this.SelectionElements.Any())
+                    this.SelectionGridItems = gridItems;
+                    if (this.SelectionGridItems.Any())
                     {
-                        this.SelectionElement = this.SelectionElements.FirstOrDefault();
+                        this.SelectedGridItem = this.SelectionGridItems.FirstOrDefault();
                     }
                 }
                 
@@ -1084,7 +1153,7 @@ namespace CLP.ADMSUpdatePlugin
             }
         }
 
-        private bool _UpdteCableADMSEnabled = false;
+        private bool _UpdteCableADMSEnabled = true;
 
         public bool UpdteCableADMSEnabled
         {
@@ -1675,7 +1744,7 @@ namespace CLP.ADMSUpdatePlugin
                                                     utilityNetwork,
                                                     utilityNetworkDefinition,
                                                     startElement,
-                                                    new TraceRunRequest { TierName = "HV", TerminalName = "SS:S1", Preset = TraceBarrierPreset.HvIsolatorLike },
+                                                    new TraceRunRequest { TierName = "HV", TerminalName = "SS:S1", Preset = TraceBarrierPreset.HvIsolator },
                                                     features => HighlightPathOnMapAsync(utilityNetwork, features));
                                                 isolatorTraceHasSubringCB = traceFeatures.Any(p => p.AssetTypeName == "Subring Circuit Breaker" || p.AssetTypeName == "Switch");
                                                 tracedIsolatorPoleNums = new PoleOptionList();
@@ -1855,6 +1924,37 @@ namespace CLP.ADMSUpdatePlugin
                                                 first.ShowToPoleNo = true;
                                                 first.ShowToPoleNoDropdown = true;
                                             }
+
+                                            // Auto-determine TO_POLE_NUM from traced Transformer's containing pole
+                                            if (tracedTransformer != null)
+                                            {
+                                                try
+                                                {
+                                                    var transformerAssociations = utilityNetwork.GetAssociations(tracedTransformer.Element);
+                                                    var transformerPoleAssoc = transformerAssociations.FirstOrDefault(a =>
+                                                        a.FromElement.AssetGroup.Name == "Support Structure"
+                                                        && a.ToElement.GlobalID == tracedTransformer.Element.GlobalID);
+                                                    if (transformerPoleAssoc != null && transformerPoleAssoc.FromElement.GlobalID != firstPoleFeature.GlobalID)
+                                                    {
+                                                        var toPoleFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(
+                                                            utilityNetwork, "Support Structure", transformerPoleAssoc.FromElement.GlobalID);
+                                                        if (toPoleFeature != null)
+                                                        {
+                                                            string toPoleNum = toPoleFeature.GetString("POLENUM");
+                                                            if (!string.IsNullOrEmpty(toPoleNum))
+                                                            {
+                                                                first.TO_POLE_NUM = toPoleNum;
+                                                                first.ShowToPoleNo = true;
+                                                                first.ShowToPoleNoDropdown = true;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                catch (Exception ex)
+                                                {
+                                                    LoggerHelper.Error(ex, "Failed to auto-determine TO_POLE_NUM from traced Transformer");
+                                                }
+                                            }
                                         }
                                         if (!first.IsTxOrPMSInPole && first.ASSET_TYPE == "Isolator") first.ShowFromSubstationFields = false;
                                         first.CableFeatures = cableFeatures;
@@ -1894,7 +1994,7 @@ namespace CLP.ADMSUpdatePlugin
                                             utilityNetwork,
                                             utilityNetworkDefinition,
                                             startElement,
-                                            new TraceRunRequest { TierName = "HV", TerminalName = "CB:Line Side", Preset = TraceBarrierPreset.HvIsolatorLike },
+                                            new TraceRunRequest { TierName = "HV", TerminalName = "CB:Line Side", Preset = TraceBarrierPreset.HvIsolator },
                                             features => HighlightPathOnMapAsync(utilityNetwork, features));
                                         tracedSubringPoleNums = new PoleOptionList();
                                         tracedSubringPoleNums.AddRange(subringTraceFeatures
@@ -2382,6 +2482,13 @@ namespace CLP.ADMSUpdatePlugin
                         {
                             queryFilter.ObjectIDs = g.Select(p => p.ObjectID).ToArray();
                         }
+                        // Set selection color to yellow
+                        //var layerDef = layer.GetDefinition() as CIMFeatureLayer;
+                        //if (layerDef != null)
+                        //{
+                        //    layerDef.SelectionColor = ColorFactory.Instance.CreateRGBColor(255, 255, 0);
+                        //    layer.SetDefinition(layerDef);
+                        //}
                         var sel = layer.Select(queryFilter);
                         var objectIDs = sel.GetObjectIDs();
                         if (objectIDs.Any())

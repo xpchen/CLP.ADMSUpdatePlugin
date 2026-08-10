@@ -72,6 +72,8 @@ namespace CLP.ADMSUpdatePlugin
             {
                 if (this.Source.AssetGroupName == "HV Switch" && this.Target != null)
                     return ADMSUpdateHelper.GetCB_SOM_CCT(this, this.Target);
+                if (this.Source.AssetGroupName == "HV Switch" && this.Target == null)
+                    return ADMSUpdateHelper.GetSpare_CB_SOM_CCT(this);
                 return "";
             }
         }
@@ -199,7 +201,7 @@ namespace CLP.ADMSUpdatePlugin
             }
         }
 
-        private bool _isChecked;
+        private bool _isChecked = true;
 
         public bool IsChecked
         {

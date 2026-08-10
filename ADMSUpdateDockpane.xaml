@@ -37,11 +37,13 @@
                 <ComboBox Margin="0,5,0,0" ItemsSource="{Binding UpdateModels}" SelectedValue="{Binding UpdateMode,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" DisplayMemberPath="Value" SelectedValuePath="Key" />
                 <TextBlock Text="{Binding SelectUpdateModeRemark}" Margin="0,15,0,5"/>
             </StackPanel>
-            <DataGrid Grid.Row="1" ItemsSource="{Binding SelectionElements}" SelectionMode="Single" IsReadOnly="True" SelectedItem="{Binding SelectionElement,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" AutoGenerateColumns="False" CanUserAddRows="False">
+            <DataGrid Grid.Row="1" ItemsSource="{Binding SelectionGridItems}" SelectionMode="Single" IsReadOnly="True" SelectedItem="{Binding SelectedGridItem,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" AutoGenerateColumns="False" CanUserAddRows="False">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="OBJECT ID" Binding="{Binding ObjectID}"/>
-                    <DataGridTextColumn Header="ASSET GROUP" Binding="{Binding AssetGroup.Name}"/>
-                    <DataGridTextColumn Header="ASSET TYPE" Binding="{Binding AssetType.Name}"/>
+                    <DataGridTextColumn Header="ASSET GROUP" Binding="{Binding AssetGroupName}"/>
+                    <DataGridTextColumn Header="ASSET TYPE" Binding="{Binding AssetTypeName}"/>
+                    <DataGridTextColumn Header="Last Edited Date" Binding="{Binding LastEditedDate}"/>
+                    <DataGridTextColumn Header="Last Edited User" Binding="{Binding LastEditedUser}"/>
                 </DataGrid.Columns>
             </DataGrid>
             <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right" Margin="15">
@@ -203,6 +205,14 @@
                             <StackPanel Orientation="Vertical">
                                 <TextBlock Text="{Binding ADMSAliasLabel,Mode=OneTime}" />
                                 <TextBox Text="{Binding ADMSAlias,Mode=OneTime}" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="{Binding SOMSSLabel,Mode=OneTime}" />
+                                <TextBox Text="{Binding SOMSS,Mode=OneTime}" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="{Binding SOMCCTLabel,Mode=OneTime}" />
+                                <TextBox Text="{Binding SOMCCT,Mode=OneTime}" IsReadOnly="True"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

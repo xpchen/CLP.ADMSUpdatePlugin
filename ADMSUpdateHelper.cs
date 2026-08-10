@@ -13,6 +13,16 @@ namespace CLP.ADMSUpdatePlugin
 {
     public class ADMSUpdateHelper
     {
+        public static string HandlePrimarySubstationName(SS_TO_SS_Model first)
+        {
+            string scadaCode = ReplaceMultipleSpaces(first.Substation.Attributes["SCADACODE"]?.ToString());
+            if (!string.IsNullOrEmpty(scadaCode) 
+                && scadaCode.Length == 3)
+                return $"{scadaCode}011";
+            else if (first.SSNAME.Replace("S/S", "").Split(" ")[0]?.Length == 3)
+                return $"{ReplaceMultipleSpaces(first.SSNAME.Replace("S/S", "").Split(" ")[0])}011";
+            else return $"{ReplaceMultipleSpaces(first.SSNAME.Replace("S/S", ""))}";
+        }
         public static string ReplaceMultipleSpaces(string input)
         {
             if (string.IsNullOrEmpty(input))
@@ -25,6 +35,8 @@ namespace CLP.ADMSUpdatePlugin
         public static string GetCableADMSName(SS_TO_SS_Model src, SS_TO_SS_Model des, FeatureSnapshot cable, bool isTemplate=false)
         {
             string textA = src.SSNAME.Replace("S/S", "");
+            if (src.Source.AssetTypeName == "Source Circuit Breaker")
+                textA = HandlePrimarySubstationName(src).PadRight(26);
             if (!String.IsNullOrEmpty(src.BB_NUMBER))
             {
                 textA += $" BD {src.BB_NUMBER}";
@@ -34,6 +46,8 @@ namespace CLP.ADMSUpdatePlugin
                 textA = ReplaceMultipleSpaces(textA).PadRight(25); // Pad the string to 25 characters
             }
             string textB = des.SSNAME.Replace("S/S", "");
+            if (des.Source.AssetTypeName == "Source Circuit Breaker")
+                textB = HandlePrimarySubstationName(des).PadRight(26);
             if (des.Source.AssetGroupName == "Transformer")
             {
                 string txPart = String.IsNullOrEmpty(des.TX_NO) ? "" : $" D{des.TX_NO}";
@@ -188,6 +202,8 @@ namespace CLP.ADMSUpdatePlugin
         public static string GetCB_SOM_SS(SS_TO_SS_Model first)
         {
             string substationSource = first.SSNAME.Replace("S/S", "");
+            if (first.Source.AssetTypeName == "Source Circuit Breaker")
+                substationSource = HandlePrimarySubstationName(first).PadRight(26);
             string bbSourcePart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $" BD {first.BB_NUMBER}";
             return ReplaceMultipleSpaces($"{substationSource}{bbSourcePart}");
         }
@@ -195,6 +211,8 @@ namespace CLP.ADMSUpdatePlugin
         public static string GetCB_SOM_CCT(SS_TO_SS_Model first, SS_TO_SS_Model second)
         {
             string substationTarget = ReplaceMultipleSpaces(second.SSNAME.Replace("S/S", ""));
+            if (second.Source.AssetTypeName == "Source Circuit Breaker")
+                substationTarget = HandlePrimarySubstationName(second).PadRight(26);
             string bbTargetPart = string.IsNullOrEmpty(second.BB_NUMBER) ? "" : $" BD {second.BB_NUMBER} ";
             string serialNumberPart = string.IsNullOrEmpty(first.SERIALNUMBER) ? "" : $" #{first.SERIALNUMBER}";
             var panelPart = "";
@@ -264,8 +282,12 @@ namespace CLP.ADMSUpdatePlugin
         {
             // ADMS Name for CB to CB
             string substationSource = ReplaceMultipleSpaces(first.SSNAME.Replace("S/S", "")).PadRight(26);
+            if (first.Source.AssetTypeName == "Source Circuit Breaker")
+                substationSource = HandlePrimarySubstationName(first).PadRight(26);
             string bbSourcePart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $"BD {first.BB_NUMBER}-";
             string substationTarget = ReplaceMultipleSpaces(second.SSNAME.Replace("S/S", ""));
+            if (second.Source.AssetTypeName == "Source Circuit Breaker")
+                substationTarget = HandlePrimarySubstationName(second).PadRight(26);
             string bbTargetPart = "";
             if (first.SSCODE == second.SSCODE)
             {
@@ -290,6 +312,8 @@ namespace CLP.ADMSUpdatePlugin
         public static string GetADMSNameForSpareCB(SS_TO_SS_Model first)
         {
             string substationSource = ReplaceMultipleSpaces(first.SSNAME.Replace("S/S", "")).PadRight(26);
+            if (first.Source.AssetTypeName == "Source Circuit Breaker")
+                substationSource = HandlePrimarySubstationName(first).PadRight(26);
             string bbPart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $"B{first.BB_NUMBER}/";
             string part2 = $"SPARE (PNL {bbPart}{first.PANEL_NO})".PadRight(41);
             string assetTypeAbbreviation = AssetTypeAbbreviations.ContainsKey(first.Source.AssetTypeName)
@@ -377,10 +401,10 @@ namespace CLP.ADMSUpdatePlugin
             // ADMS Alias for Transformer
             string substationSource = first.SSCODE.PadRight(7);
             string transformerPart = string.IsNullOrEmpty(first.TX_NO) ? "D1" : $"D{first.TX_NO}";
-            if(!string.IsNullOrEmpty(first.TX_NO) 
-                && int.TryParse(first.TX_NO, out int tx_integer) 
-                && int.Parse(first.TX_NO) >= 10)
-                transformerPart = $"D{tx_integer.ToString("X")}";
+            //if (!string.IsNullOrEmpty(first.TX_NO)
+            //    && int.TryParse(first.TX_NO, out int tx_integer)
+            //    && int.Parse(first.TX_NO) >= 10)
+            //    transformerPart = $"D{(char)(int.Parse(first.TX_NO) + 55)}";
             string part2 = $"{transformerPart}".PadRight(15);
             string part3 = "LOAD".PadRight(8);
             return $"{substationSource}{part2}{part3}";

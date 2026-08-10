@@ -8,7 +8,7 @@ using CLP.ADMSUpdatePlugin;
 
 public enum TraceBarrierPreset
 {
-    HvIsolatorLike,
+    HvIsolator,
     HvFuse,
     HvSsToSs,
     HvBusbar,
@@ -155,7 +155,7 @@ public static class UtilityNetworkTraceRunner
     {
         switch (preset)
         {
-            case TraceBarrierPreset.HvIsolatorLike:
+            case TraceBarrierPreset.HvIsolator:
                 cfg.Traversability.Barriers = null;
                 TraceCfgHelpers.AddCategoryBarrier(def, cfg, "E:Switch");
                 TraceCfgHelpers.AddAssetGroupBarriers(def, cfg, new[] { 61, 51 });
@@ -184,7 +184,7 @@ public static class UtilityNetworkTraceRunner
                 cfg.Traversability.Barriers = TraceCfgHelpers.RemoveAttrFromBarriers(
                     cfg.Traversability.Barriers,
                     "NormalOperatingStatus", "Life Cycle Status");
-                TraceCfgHelpers.AddLifeCycleBarriers(def, cfg, new[] { 1 });
+                TraceCfgHelpers.AddLifeCycleBarriers(def, cfg, new[] { 0, 1, 3, 4 });
                 break;
 
             case TraceBarrierPreset.LvSourceFuse:
