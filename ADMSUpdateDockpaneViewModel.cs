@@ -144,7 +144,7 @@ namespace CLP.ADMSUpdatePlugin
                                 SelectUpdateModeRemark = "Plz select a Circuit breaker feature";
                                 break;
                             case ADMSUpdateMode.Pole:
-                                SelectUpdateModeRemark = "Plz select a Pole feature (Isolator/Fuse/Transformer/Switch/Subring Circuit Breaker)";
+                                SelectUpdateModeRemark = "Plz select a Pole feature (Isolator/Fuse/Transformer/Switch/Subring Circuit Breaker/Recloser)";
                                 break;
                             case ADMSUpdateMode.PoleCable:
                                 SelectUpdateModeRemark = "Plz select the Cable/OHL that needs to be updated";
@@ -391,33 +391,24 @@ namespace CLP.ADMSUpdatePlugin
                         MessageBox.Show("Error: " + ex.Message);
                     }
                 }
-                else if (this.SpareHVSwitch != null && this.UpdateMode == ADMSUpdateMode.SpareCB)
+                else if (this.SpareHVSwitches != null && this.UpdateMode == ADMSUpdateMode.SpareCB)
                 {
                     try
                     {
-                        var cbTable = un.GetTable(this.SpareHVSwitch.Source.Element.NetworkSource);
-
-                        if (this.SpareHVSwitch.IsChecked)
+                        foreach (var cb in this.SpareHVSwitches)
                         {
-                            // Update ADMS Name & Alias for the first HV Switch
-                            insp.Load(cbTable, this.SpareHVSwitch.Source.ObjectID);
-                            string firstHVSwitchName = this.SpareHVSwitch.ADMSName;
-                            string firstHVSwitchAlias = this.SpareHVSwitch.ADMSAlias;
-                            string firstHVSwitchAssetGroup = this.SpareHVSwitch.Source.AssetGroupName;
-                            string firstHVSwitchAssetType = this.SpareHVSwitch.Source.AssetTypeName;
-
-                            LoggerHelper.Info($"Updating ADMS_Name and ADMS_Alias for Spare HV Switch (ObjectID: {this.SpareHVSwitch.Source.ObjectID}, AssetGroup: {firstHVSwitchAssetGroup}, AssetType: {firstHVSwitchAssetType})");
-                            LoggerHelper.Info($"ADMS_Name: {firstHVSwitchName}, ADMS_Alias: {firstHVSwitchAlias}");
-
-                            insp["ADMS_Name"] = firstHVSwitchName;
-                            insp["ADMS_Alias"] = firstHVSwitchAlias;
-
-                            if (this.SpareHVSwitch.Source.AssetGroupName == "HV Switch")
+                            if (!cb.IsChecked) continue;
+                            var cbTable = un.GetTable(cb.Source.Element.NetworkSource);
+                            insp.Load(cbTable, cb.Source.ObjectID);
+                            LoggerHelper.Info($"Updating ADMS_Name and ADMS_Alias for Spare HV Switch (ObjectID: {cb.Source.ObjectID}, AssetGroup: {cb.Source.AssetGroupName}, AssetType: {cb.Source.AssetTypeName})");
+                            LoggerHelper.Info($"ADMS_Name: {cb.ADMSName}, ADMS_Alias: {cb.ADMSAlias}");
+                            insp["ADMS_Name"] = cb.ADMSName;
+                            insp["ADMS_Alias"] = cb.ADMSAlias;
+                            if (cb.Source.AssetGroupName == "HV Switch")
                             {
-                                insp["SOM_SS"] = ADMSUpdateHelper.GetCB_SOM_SS(this.SpareHVSwitch);
-                                insp["SOM_CCT"] = ADMSUpdateHelper.GetSpare_CB_SOM_CCT(this.SpareHVSwitch);
+                                insp["SOM_SS"] = ADMSUpdateHelper.GetCB_SOM_SS(cb);
+                                insp["SOM_CCT"] = ADMSUpdateHelper.GetSpare_CB_SOM_CCT(cb);
                             }
-
                             editOp.Modify(insp);
                         }
                         if (!editOp.IsEmpty)
@@ -432,9 +423,8 @@ namespace CLP.ADMSUpdatePlugin
                                 LoggerHelper.Error($"Update failed: {editOp.ErrorMessage}");
                                 MessageBox.Show("Update fail: " + editOp.ErrorMessage);
                             }
-
                         }
-                    } 
+                    }
                     catch(Exception ex)
                     {
                         LoggerHelper.Error($"Exception occurred during ADMS Name & Alias update: {ex.Message}");
@@ -462,7 +452,8 @@ namespace CLP.ADMSUpdatePlugin
 
                         if (this.PoleDevice.Source.AssetTypeName == "Isolator" || 
                             this.PoleDevice.Source.AssetTypeName == "Switch" || 
-                            this.PoleDevice.Source.AssetTypeName == "Subring Circuit Breaker")
+                            this.PoleDevice.Source.AssetTypeName == "Subring Circuit Breaker" ||
+                            this.PoleDevice.Source.AssetTypeName == "Recloser")
                         {
                             insp["SOM_SS"] = this.PoleDevice.SOMSS;
                             insp["SOM_CCT"] = this.PoleDevice.SOMCCT;
@@ -752,7 +743,7 @@ namespace CLP.ADMSUpdatePlugin
         public void Back() {
             this.FirstHVSwitch = null;
             this.SecondHVSwitch = null;
-            this.SpareHVSwitch = null;
+            this.SpareHVSwitches = null;
             this.PoleDevice = null;
             this.LVFeature = null;
             this.LVFeatureContainer = null;
@@ -1010,7 +1001,8 @@ namespace CLP.ADMSUpdatePlugin
                                             if (element.AssetGroup.Name == "HV Switch" && (element.AssetType.Name == "Isolator" || element.AssetType.Name == "Switch")
                                             || element.AssetGroup.Name == "Transformer" && element.AssetType.Name == "HV PM TX"
                                             || element.AssetGroup.Name == "HV Fuse" && element.AssetType.Name == "Fuse"
-                                            || element.AssetGroup.Name == "HV Switch" && element.AssetType.Name == "Subring Circuit Breaker")
+                                            || element.AssetGroup.Name == "HV Switch" && element.AssetType.Name == "Subring Circuit Breaker"
+                                            || element.AssetGroup.Name == "HV Switch" && element.AssetType.Name == "Recloser")
                                             {
                                                 selectionElements.Add(element);
                                                 gridItems.Add(new GridTableItem
@@ -1475,6 +1467,8 @@ namespace CLP.ADMSUpdatePlugin
                                         // LoggerHelper.Info($"Trace result for:{Tr}");
                                         this.FirstHVSwitch = first;
                                         this.SecondHVSwitch = second;
+                                        first.CheckMultipleBusbars(utilityNetwork);
+                                        second.CheckMultipleBusbars(utilityNetwork);
 
                                         this.Cables = features.Where(p => p.AssetGroupName == "HV Line" && p.AssetTypeName == "Cable" 
                                         || (p.AssetGroupName == "HV Connection Point" && (p.AssetTypeName == "Termination" || p.AssetTypeName == "Joint")));
@@ -1530,8 +1524,19 @@ namespace CLP.ADMSUpdatePlugin
                                         first.ResultType = resultType;
                                         first.Target = second;
                                         second.Target = first;
+                                        if (String.IsNullOrEmpty(first.PANEL_NO) || String.IsNullOrEmpty(second.PANEL_NO))
+                                        {
+                                            string panelErrorMessage = "";
+                                            if (String.IsNullOrEmpty(first.PANEL_NO))
+                                                panelErrorMessage += $"HV Switch([{first.Source.ObjectID},{first.Source.GlobalID}]) Panel Number is empty. ";
+                                            if (String.IsNullOrEmpty(second.PANEL_NO))
+                                                panelErrorMessage += $"HV Switch([{second.Source.ObjectID},{second.Source.GlobalID}]) Panel Number is empty. ";
+                                            MessageBox.Show("Remind: " + panelErrorMessage);
+                                        }
                                         this.FirstHVSwitch = first;
                                         this.SecondHVSwitch = second;
+                                        first.CheckMultipleBusbars(utilityNetwork);
+                                        second.CheckMultipleBusbars(utilityNetwork);
                                         this.Cables = features.Where(p => p.AssetGroupName == "HV Line" && p.AssetTypeName == "Cable" 
                                         || (p.AssetGroupName == "HV Connection Point" && (p.AssetTypeName == "Termination" || p.AssetTypeName == "Joint")));
                                         foreach (var cable in Cables)
@@ -1559,61 +1564,65 @@ namespace CLP.ADMSUpdatePlugin
                             }
                             else if (this.UpdateMode == ADMSUpdateMode.SpareCB)
                             {
-                                LoggerHelper.Info($"Starting to process Spare HV Switch at {DateTime.Now}");
-                                var startElement = this.SelectionElement;
-                                LoggerHelper.Info($"Starting to get Spare HV Switch Association at {DateTime.Now}");
-                                LoadingStatusText = "Getting associations...";
-                                var hvSwitchAssociations = utilityNetwork.GetAssociations(startElement);
-                                LoggerHelper.Info($"Ending to get Spare HV Switch Association at {DateTime.Now}");
-                                SS_TO_SS_Model first = null;
-                                if (hvSwitchAssociations.Count() == 0)
+                                LoggerHelper.Info($"Starting to process Spare HV Switches at {DateTime.Now}");
+                                var deviceLayer = FeatureQueryHelper.GetFeatureLayer("HV Switch");
+                                var substationLayer = FeatureQueryHelper.GetFeatureLayer("Substation");
+                                if (deviceLayer == null)
                                 {
-                                    MessageBox.Show("No accociation in CB.");
+                                    MessageBox.Show("Fail to found layer HV Switch.");
                                     return;
                                 }
-                                foreach (var hvSwitchAssociation in hvSwitchAssociations)
+                                if (substationLayer == null)
                                 {
-                                    if (hvSwitchAssociation.FromElement.AssetGroup.Name == "Substation" && 
-                                        hvSwitchAssociation.ToElement.AssetGroup.Name == "HV Switch")
+                                    MessageBox.Show("Fail to found layer Substation.");
+                                    return;
+                                }
+                                var spareCBList = new List<SS_TO_SS_Model>();
+                                foreach (var startElement in this.SelectionElements)
+                                {
+                                    LoadingStatusText = $"Getting associations for CB ({spareCBList.Count + 1}/{this.SelectionElements.Count})...";
+                                    var hvSwitchAssociations = utilityNetwork.GetAssociations(startElement);
+                                    if (hvSwitchAssociations.Count() == 0) continue;
+                                    foreach (var hvSwitchAssociation in hvSwitchAssociations)
                                     {
-                                        var deviceLayer = FeatureQueryHelper.GetFeatureLayer("HV Switch");
-                                        var substationLayer = FeatureQueryHelper.GetFeatureLayer("Substation");
-                                        if (deviceLayer == null)
+                                        if (hvSwitchAssociation.FromElement.AssetGroup.Name == "Substation" &&
+                                            hvSwitchAssociation.ToElement.AssetGroup.Name == "HV Switch")
                                         {
-                                            MessageBox.Show("Fail to found layer HV Switch.");
-                                            return;
+                                            LoggerHelper.Info($"Starting to query target element (switch) info at {DateTime.Now}");
+                                            var firstSwitchFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, "HV Switch", hvSwitchAssociation.ToElement.GlobalID);
+                                            LoggerHelper.Info($"Ending to query target element (switch) info at {DateTime.Now}");
+                                            LoggerHelper.Info($"Starting to query target element (substation) info at {DateTime.Now}");
+                                            var firstSubstationFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, "Substation", hvSwitchAssociation.FromElement.GlobalID);
+                                            LoggerHelper.Info($"Ending to query target element (substation) info at {DateTime.Now}");
+                                            var model = new SS_TO_SS_Model(firstSwitchFeature, utilityNetwork);
+                                            model.SSCODE = firstSubstationFeature.Attributes["SSNUM"]?.ToString();
+                                            model.SSNAME = firstSubstationFeature.Attributes["SSNAME"]?.ToString();
+                                            model.Source = firstSwitchFeature;
+                                            model.Substation = firstSubstationFeature;
+                                            spareCBList.Add(model);
+                                            break;
                                         }
-                                        if (substationLayer == null)
-                                        {
-                                            MessageBox.Show("Fail to found layer Substation.");
-                                            return;
-                                        }
-                                        FeatureSnapshot firstSwitchFeature = null;
-                                        FeatureSnapshot firstSubstationFeature = null;
-                                        LoggerHelper.Info($"Starting to query target element (switch) info at {DateTime.Now}");
-                                        firstSwitchFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, "HV Switch", hvSwitchAssociation.ToElement.GlobalID);
-                                        LoggerHelper.Info($"Ending to query target element (switch) info at {DateTime.Now}");
-                                        LoggerHelper.Info($"Starting to query target element (substation) info at {DateTime.Now}");
-                                        firstSubstationFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, "Substation", hvSwitchAssociation.FromElement.GlobalID);
-                                        LoggerHelper.Info($"Ending to query target element (substation) info at {DateTime.Now}");
-                                        first = new SS_TO_SS_Model(firstSwitchFeature, utilityNetwork);
-                                        first.SSCODE = firstSubstationFeature.Attributes["SSNUM"]?.ToString();
-                                        first.SSNAME = firstSubstationFeature.Attributes["SSNAME"]?.ToString();
-                                        first.Source = firstSwitchFeature;
-                                        first.Substation = firstSubstationFeature;
-                                        this.SpareHVSwitch = first;
-                                        this.ShowSearchPanel = false;
-                                        this.ShowSpareCBUpdatePanel = true;
-                                        break;
                                     }
                                 }
-                                LoggerHelper.Info($"Ending to process Spare HV Switch at {DateTime.Now}");
-                                if (first == null)
+                                LoggerHelper.Info($"Ending to process Spare HV Switches at {DateTime.Now}");
+                                var nullPanelCBs = spareCBList.Where(cb => string.IsNullOrEmpty(cb.PANEL_NO)).ToList();
+                                if (nullPanelCBs.Any())
                                 {
-                                    MessageBox.Show("No accociation between CB and Substation.");
+                                    string msg = string.Join(", ", nullPanelCBs.Select(cb => $"HV Switch([{cb.Source.ObjectID},{cb.Source.GlobalID}]) Panel Number is empty."));
+                                    MessageBox.Show("Remind: " + msg);
+                                }
+                                if (spareCBList.Count == 0)
+                                {
+                                    MessageBox.Show("No association between CB and Substation.");
                                     return;
                                 }
-                                    
+                                foreach (var cb in spareCBList)
+                                {
+                                    cb.CheckMultipleBusbars(utilityNetwork);
+                                }
+                                this.SpareHVSwitches = spareCBList;
+                                this.ShowSearchPanel = false;
+                                this.ShowSpareCBUpdatePanel = true;
                             }
                             else if (this.UpdateMode == ADMSUpdateMode.Pole)
                             {
@@ -1801,6 +1810,10 @@ namespace CLP.ADMSUpdatePlugin
                                                     }
                                                 }
                                             }
+                                            else if (firstSwitchFeature.AssetTypeName == "Recloser")
+                                            {
+                                                // Recloser: SSNAME/SSNUM from feature itself (constructor), no trace or co-location needed
+                                            }
                                             else
                                             {
                                                 foreach (var poleAssociation in poleAssociations)
@@ -1923,6 +1936,7 @@ namespace CLP.ADMSUpdatePlugin
                                             {
                                                 first.ShowToPoleNo = true;
                                                 first.ShowToPoleNoDropdown = true;
+                                                first.ShowFromSubstationFields = false;
                                             }
 
                                             // Auto-determine TO_POLE_NUM from traced Transformer's containing pole
@@ -2407,7 +2421,7 @@ namespace CLP.ADMSUpdatePlugin
         public IEnumerable<FeatureSnapshot> Cables { get; set; }
         private SS_TO_SS_Model _firstHVSwitch;
         public SS_TO_SS_Model _secondHVSwitch;
-        private SS_TO_SS_Model _spareHVSwitch;
+        private List<SS_TO_SS_Model> _spareHVSwitches;
         private Pole_Model _poleDevice;
         private LVFeature_Model _lvFeature;
         private LVFeatureContainer_Model _lvFeatureContainer;
@@ -2425,10 +2439,10 @@ namespace CLP.ADMSUpdatePlugin
             set => SetProperty(ref _secondHVSwitch, value);
         }
 
-        public SS_TO_SS_Model SpareHVSwitch
+        public List<SS_TO_SS_Model> SpareHVSwitches
         {
-            get => _spareHVSwitch;
-            set => SetProperty(ref _spareHVSwitch, value);
+            get => _spareHVSwitches;
+            set => SetProperty(ref _spareHVSwitches, value);
         }
 
         public Pole_Model PoleDevice

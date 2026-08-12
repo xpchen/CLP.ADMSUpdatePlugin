@@ -150,6 +150,7 @@ namespace CLP.ADMSUpdatePlugin
             {
                 SetProperty(ref _circuit_name, value);
                 NotifyPropertyChanged(nameof(ShowToCircuitFields));
+                NotifyPropertyChanged(nameof(CircuitNameLabel));
             }
         }
 
@@ -157,7 +158,11 @@ namespace CLP.ADMSUpdatePlugin
         public string CIRCUIT_ID
         {
             get => _circuit_id;
-            set => SetProperty(ref _circuit_id, value);
+            set
+            {
+                SetProperty(ref _circuit_id, value);
+                NotifyPropertyChanged(nameof(CircuitIdLabel));
+            }
         }
 
         private string _from_pole_num;
@@ -201,14 +206,22 @@ namespace CLP.ADMSUpdatePlugin
         public string FROM_SS_NAME
         {
             get => _from_ss_name;
-            set => SetProperty(ref _from_ss_name, value);
+            set
+            {
+                SetProperty(ref _from_ss_name, value);
+                NotifyPropertyChanged(nameof(FromSSNameLabel));
+            }
         }
 
         private string _from_ss_num;
         public string FROM_SS_NUM
         {
             get => _from_ss_num;
-            set => SetProperty(ref _from_ss_num, value);
+            set
+            {
+                SetProperty(ref _from_ss_num, value);
+                NotifyPropertyChanged(nameof(FromSSNumLabel));
+            }
         }
 
         private string _to_ss_name;
@@ -300,6 +313,7 @@ namespace CLP.ADMSUpdatePlugin
                 //if (this.ASSET_TYPE == "HV PM TX") return ADMSUpdateHelper.ReplaceMultipleSpaces($"{this.FROM_SS_NAME?.Replace("S/S", "")}");
                 if (this.ASSET_TYPE == "Isolator") return ADMSUpdateHelper.GetIsolator_SOM_SS(this);
                 if (this.ASSET_TYPE == "Subring Circuit Breaker") return ADMSUpdateHelper.GetSubringCB_SOM_SS(this);
+                if (this.ASSET_TYPE == "Recloser") return ADMSUpdateHelper.GetRecloser_SOM_SS(this);
                 if (this.ASSET_TYPE == "Fuse") return ADMSUpdateHelper.GetSOMSSForFuse(this);
                 return "";
             }
@@ -313,6 +327,7 @@ namespace CLP.ADMSUpdatePlugin
                 //if (this.ASSET_TYPE == "HV PM TX") return "P/M Tx";
                 if (this.ASSET_TYPE == "Isolator") return ADMSUpdateHelper.GetIsolator_SOM_CCT(this);
                 if (this.ASSET_TYPE == "Subring Circuit Breaker") return ADMSUpdateHelper.GetSubringCB_SOM_CCT(this);
+                if (this.ASSET_TYPE == "Recloser") return ADMSUpdateHelper.GetRecloser_SOM_CCT(this);
                 return "";
             }
         }
@@ -326,6 +341,7 @@ namespace CLP.ADMSUpdatePlugin
                 if (this.ASSET_TYPE == "HV PM TX") return ADMSUpdateHelper.GetADMSNameForTransformer(this);
                 if (this.ASSET_TYPE == "Switch") return ADMSUpdateHelper.GetADMSNameForPMS(this);
                 if (this.ASSET_TYPE == "Subring Circuit Breaker") return ADMSUpdateHelper.GetADMSNameForSubringCB(this);
+                if (this.ASSET_TYPE == "Recloser") return ADMSUpdateHelper.GetADMSNameForRecloser(this);
                 return "";
             }
         }
@@ -339,6 +355,7 @@ namespace CLP.ADMSUpdatePlugin
                 if (this.ASSET_TYPE == "HV PM TX") return ADMSUpdateHelper.GetADMSAliasForTransformer(this);
                 if (this.ASSET_TYPE == "Switch") return ADMSUpdateHelper.GetADMSAliasForPMS(this);
                 if (this.ASSET_TYPE == "Subring Circuit Breaker") return ADMSUpdateHelper.GetADMSAliasForSubringCB(this);
+                if (this.ASSET_TYPE == "Recloser") return ADMSUpdateHelper.GetADMSAliasForRecloser(this);
                 return "";
             }
         }
@@ -359,12 +376,38 @@ namespace CLP.ADMSUpdatePlugin
             this.SOMCCT == (this.Source.Attributes.ContainsKey("SOM_CCT") ? this.Source.Attributes["SOM_CCT"]?.ToString() : null)
             ? "SOMCCT: (Same as current value)" : "SOMCCT:";
 
+        // One shared remind text for all null-field reminders
+        public string NullFieldReminder => "(This field shouldn't be null)";
+
+        public bool NeedsSSValidation =>
+            ASSET_TYPE == "HV PM TX" || ASSET_TYPE == "Switch" || ASSET_TYPE == "Recloser";
+
+        public string CircuitNameLabel =>
+            string.IsNullOrEmpty(CIRCUIT_NAME) ? $"Circuit Name: {NullFieldReminder}" : "Circuit Name:";
+
+        public string CircuitIdLabel =>
+            string.IsNullOrEmpty(CIRCUIT_ID) ? $"Circuit ID: {NullFieldReminder}" : "Circuit ID:";
+
+        public string FromSSNameLabel =>
+            NeedsSSValidation && string.IsNullOrEmpty(FROM_SS_NAME)
+                ? $"SS Name (Source): {NullFieldReminder}"
+                : "SS Name (Source):";
+
+        public string FromSSNumLabel =>
+            NeedsSSValidation && string.IsNullOrEmpty(FROM_SS_NUM)
+                ? $"SS Num (Source): {NullFieldReminder}"
+                : "SS Num (Source):";
+
         public void RefreshLabels()
         {
             NotifyPropertyChanged(nameof(ADMSNameLabel));
             NotifyPropertyChanged(nameof(ADMSAliasLabel));
             NotifyPropertyChanged(nameof(SOMSSLabel));
             NotifyPropertyChanged(nameof(SOMCCTLabel));
+            NotifyPropertyChanged(nameof(CircuitNameLabel));
+            NotifyPropertyChanged(nameof(CircuitIdLabel));
+            NotifyPropertyChanged(nameof(FromSSNameLabel));
+            NotifyPropertyChanged(nameof(FromSSNumLabel));
         }
 
         public FeatureSnapshot Source { get; set; }
@@ -404,6 +447,13 @@ namespace CLP.ADMSUpdatePlugin
                     this.ShowFromPoleNo = false;
                     this.ShowToSubstationFields = false;
                     this.ShowToPoleNo = false;
+                    this.ShowToPoleNoDropdown = false;
+                    this.ShowCheckBoxs = false;
+                }
+                else if (this.ASSET_TYPE == "Recloser")
+                {
+                    this.ShowToPoleNo = false;
+                    this.ShowToSubstationFields = false;
                     this.ShowToPoleNoDropdown = false;
                     this.ShowCheckBoxs = false;
                 }

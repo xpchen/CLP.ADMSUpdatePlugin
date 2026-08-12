@@ -75,6 +75,13 @@
                                 <TextBlock Text="{Binding SSNAME}"/>
                                 <CheckBox IsChecked="{Binding IsChecked}" Content="Update" Margin="5,0,0,0"></CheckBox>
                             </StackPanel>
+                            <StackPanel Orientation="Vertical" Visibility="{Binding ShowBBNumberRemind,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="{Binding BBNumberLabel}"
+                                           Foreground="#E65100"
+                                           FontSize="11"
+                                           FontStyle="Italic"
+                                           Margin="0,1,0,1" />
+                            </StackPanel>
                             <StackPanel Orientation="Vertical">
                                 <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
                                 <TextBox Text="{Binding ADMSName,Mode=OneTime}" IsReadOnly="True"/>
@@ -108,6 +115,13 @@
                                     <TextBlock Text="Substation Name:" />
                                     <TextBlock Text="{Binding SSNAME}" />
                                     <CheckBox IsChecked="{Binding IsChecked}" Content="Update" Margin="5,0,0,0"></CheckBox>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical" Visibility="{Binding ShowBBNumberRemind,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <TextBlock Text="{Binding BBNumberLabel}"
+                                               Foreground="#E65100"
+                                               FontSize="11"
+                                               FontStyle="Italic"
+                                               Margin="0,1,0,1" />
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical">
                                     <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
@@ -185,38 +199,44 @@
             </StackPanel>
 
             <ScrollViewer Grid.Row="1">
-                <Grid Grid.Row="1">
-                    <Grid.RowDefinitions>
-                        <RowDefinition />
-                        <RowDefinition />
-                        <RowDefinition />
-                    </Grid.RowDefinitions>
-                    <Border CornerRadius="5" Grid.Row="0" Padding="5" Margin="5" BorderBrush="#f1f1f1" BorderThickness="1" DataContext="{Binding SpareHVSwitch}">
-                        <StackPanel Orientation="Vertical">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Substation Name:" />
-                                <TextBlock Text="{Binding SSNAME}"/>
-                                <CheckBox IsChecked="{Binding IsChecked}" Content="Update" Margin="5,0,0,0"></CheckBox>
-                            </StackPanel>
-                            <StackPanel Orientation="Vertical">
-                                <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
-                                <TextBox Text="{Binding ADMSName,Mode=OneTime}" IsReadOnly="True"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Vertical">
-                                <TextBlock Text="{Binding ADMSAliasLabel,Mode=OneTime}" />
-                                <TextBox Text="{Binding ADMSAlias,Mode=OneTime}" IsReadOnly="True"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Vertical">
-                                <TextBlock Text="{Binding SOMSSLabel,Mode=OneTime}" />
-                                <TextBox Text="{Binding SOMSS,Mode=OneTime}" IsReadOnly="True"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Vertical">
-                                <TextBlock Text="{Binding SOMCCTLabel,Mode=OneTime}" />
-                                <TextBox Text="{Binding SOMCCT,Mode=OneTime}" IsReadOnly="True"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
-                </Grid>
+                <ItemsControl ItemsSource="{Binding SpareHVSwitches}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border CornerRadius="5" Padding="5" Margin="5" BorderBrush="#f1f1f1" BorderThickness="1">
+                                <StackPanel Orientation="Vertical">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Substation Name:" />
+                                        <TextBlock Text="{Binding SSNAME}"/>
+                                        <CheckBox IsChecked="{Binding IsChecked}" Content="Update" Margin="5,0,0,0"></CheckBox>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical" Visibility="{Binding ShowBBNumberRemind,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock Text="{Binding BBNumberLabel}"
+                                                   Foreground="#E65100"
+                                                   FontSize="11"
+                                                   FontStyle="Italic"
+                                                   Margin="0,1,0,1" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="{Binding ADMSNameLabel,Mode=OneTime}" />
+                                        <TextBox Text="{Binding ADMSName,Mode=OneTime}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="{Binding ADMSAliasLabel,Mode=OneTime}" />
+                                        <TextBox Text="{Binding ADMSAlias,Mode=OneTime}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="{Binding SOMSSLabel,Mode=OneTime}" />
+                                        <TextBox Text="{Binding SOMSS,Mode=OneTime}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="{Binding SOMCCTLabel,Mode=OneTime}" />
+                                        <TextBox Text="{Binding SOMCCT,Mode=OneTime}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </ScrollViewer>
 
             <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right" Margin="15">
@@ -259,11 +279,11 @@
                                     <CheckBox IsChecked="{Binding IsSingleDevice}" Content="Single Device In Pole" Margin="5,0,0,0"></CheckBox>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical" Visibility="{Binding ShowCircuitFields,Converter={StaticResource BooleanToVisibilityConverter}}">
-                                    <TextBlock Text="Circuit Name:" />
+                                    <TextBlock Text="{Binding CircuitNameLabel}" />
                                     <TextBox Text="{Binding CIRCUIT_NAME,Mode=Default}" IsReadOnly="False" IsEnabled="{Binding EnableCircuit}"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical" Visibility="{Binding ShowCircuitFields,Converter={StaticResource BooleanToVisibilityConverter}}">
-                                    <TextBlock Text="Circuit ID:" />
+                                    <TextBlock Text="{Binding CircuitIdLabel}" />
                                     <TextBox Text="{Binding CIRCUIT_ID,Mode=Default}" IsReadOnly="False" IsEnabled="{Binding EnableCircuit}"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal">
@@ -308,11 +328,11 @@
                                     <TextBox Text="{Binding TO_CIRCUIT_ID,Mode=Default}" IsReadOnly="False" IsEnabled="{Binding EnableCircuit}"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical" Visibility="{Binding ShowFromSubstationFields,Converter={StaticResource BooleanToVisibilityConverter}}">
-                                    <TextBlock Text="SS Name (Source):" />
+                                    <TextBlock Text="{Binding FromSSNameLabel}" />
                                     <TextBox Text="{Binding FROM_SS_NAME,Mode=Default}" IsReadOnly="False" IsEnabled="{Binding EnableFromSubstation}"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical" Visibility="{Binding ShowFromSubstationFields,Converter={StaticResource BooleanToVisibilityConverter}}">
-                                    <TextBlock Text="SS Num (Source):" />
+                                    <TextBlock Text="{Binding FromSSNumLabel}" />
                                     <TextBox Text="{Binding FROM_SS_NUM,Mode=Default}" IsReadOnly="False" IsEnabled="{Binding EnableFromSubstation}"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Vertical" Visibility="{Binding ShowToSubstationFields,Converter={StaticResource BooleanToVisibilityConverter}}">

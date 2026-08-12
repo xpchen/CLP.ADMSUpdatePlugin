@@ -269,6 +269,16 @@ namespace CLP.ADMSUpdatePlugin
             return $"{first.FROM_POLE_NUM}";
         }
 
+        public static string GetRecloser_SOM_SS(Pole_Model first)
+        {
+            return ReplaceMultipleSpaces($"{first.CIRCUIT_NAME} ({first.FROM_SS_NAME?.Replace("S/S", "")})");
+        }
+
+        public static string GetRecloser_SOM_CCT(Pole_Model first)
+        {
+            return $"P.{first.FROM_POLE_NUM}";
+        }
+
         public static string GetSubringCB_SOM_SS(Pole_Model first)
         {
             return ReplaceMultipleSpaces($"{first.FROM_SS_NAME.Replace("S/S", "")}");
@@ -559,6 +569,28 @@ namespace CLP.ADMSUpdatePlugin
             return $"{substationSource}{part2}{part3}";
         }
 
+
+        public static string GetADMSNameForRecloser(Pole_Model first)
+        {
+            string part1, part2, part3;
+            part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NAME?.Replace("S/S", "")}").PadRight(26);
+            part2 = $"FEEDER I".PadRight(41);
+            if (first.FROM_SS_NAME.Contains("FRC"))
+                part3 = $"FRC".PadRight(13);
+            else part3 = $"RC".PadRight(13);
+            return $"{part1}{part2}{part3}";
+        }
+
+        public static string GetADMSAliasForRecloser(Pole_Model first)
+        {
+            string part1, part2, part3;
+            part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NUM}").PadRight(7);
+            part2 = $"FDR I".PadRight(15);
+            if (first.FROM_SS_NAME.Contains("FRC"))
+                part3 = $"FRC".PadRight(8);
+            else part3 = $"RC".PadRight(8);
+            return $"{part1}{part2}{part3}";
+        }
         public static string GetADMSNameForPoleCable(string circuitName, string objectID)
         {
             string part1 = circuitName?.PadRight(68);

@@ -2,6 +2,7 @@
 using ArcGIS.Desktop.Framework.Contracts;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace CLP.ADMSUpdatePlugin
@@ -19,6 +20,17 @@ namespace CLP.ADMSUpdatePlugin
         public string PANEL_NO { get; }
 
         public string TX_NO { get; set; }
+
+        private bool _hasMultipleBusbars;
+        public bool HasMultipleBusbars
+        {
+            get => _hasMultipleBusbars;
+            set => SetProperty(ref _hasMultipleBusbars, value);
+        }
+
+        public string BBNumberLabel => "BB Number is null";
+
+        public bool ShowBBNumberRemind => _hasMultipleBusbars && string.IsNullOrEmpty(BB_NUMBER);
 
         // ADMSName logic (circuit breaker)
         public string ADMSName
@@ -185,6 +197,18 @@ namespace CLP.ADMSUpdatePlugin
             }
 
             this.PropertyChanged += SS_TO_SS_Model_PropertyChanged;
+        }
+
+        public void CheckMultipleBusbars(UtilityNetwork utilityNetwork)
+        {
+            if (this.Substation == null) return;
+            var containmentAssociations = utilityNetwork.GetAssociations(this.Substation.Element, AssociationType.Containment);
+            var busbarCount = containmentAssociations.Count(a =>
+                a.ToElement.AssetGroup.Name == "HV Line" &&
+                a.ToElement.AssetType.Name == "Busbar");
+            this.HasMultipleBusbars = busbarCount > 1;
+            NotifyPropertyChanged(nameof(ShowBBNumberRemind));
+            NotifyPropertyChanged(nameof(BBNumberLabel));
         }
 
         private async void SS_TO_SS_Model_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
