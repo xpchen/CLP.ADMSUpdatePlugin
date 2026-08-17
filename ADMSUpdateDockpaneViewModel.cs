@@ -68,24 +68,21 @@ namespace CLP.ADMSUpdatePlugin
         }
 
         // Below value for Pole Cable
-        private string _cableCircuitName;
-
-        private string _cableCircuitID;
-
-        public string CABLE_CIRCUIT_NAME
+        private PoleCableInfo _cableModel;
+        public PoleCableInfo CableModel
         {
-            get => _cableCircuitName;
-            set => SetProperty(ref _cableCircuitName, value);
-        }
-
-        public string CABLE_CIRCUIT_ID
-        {
-            get => _cableCircuitID;
-            set => SetProperty(ref _cableCircuitID, value);
+            get => _cableModel;
+            set => SetProperty(ref _cableModel, value);
         }
 
         protected ADMSUpdateDockpaneViewModel()
         {
+            this.CableModel = new PoleCableInfo
+            {
+                FromCircuit = new CableCircuit(),
+                ToCircuit = new CableCircuit(),
+                Substation = new CableSubstation()
+            };
             this.NextStepCommand = new RelayCommand(
                 () => _ = NextStepAsync(),
                 () => !IsBusy && (this.SelectionElement != null ||
@@ -466,23 +463,18 @@ namespace CLP.ADMSUpdatePlugin
                         editOp.Modify(insp);
 
                         // Update Cable/OHL features from trace
-                        if (this.PoleDevice.CableFeatures != null && this.PoleDevice.CableFeatures.Count > 0)
+                        if (this.PoleDevice.PoleCableInfos != null && this.PoleDevice.PoleCableInfos.Count > 0)
                         {
-                            foreach (var cableFeature in this.PoleDevice.CableFeatures)
+                            foreach (var cableInfo in this.PoleDevice.PoleCableInfos)
                             {
-                                var cableTable = un.GetTable(cableFeature.Element.NetworkSource);
-                                insp.Load(cableTable, cableFeature.ObjectID);
+                                var cableTable = un.GetTable(cableInfo.CableFeature.Element.NetworkSource);
+                                insp.Load(cableTable, cableInfo.CableObjectID == null ? 0 : long.Parse(cableInfo.CableObjectID));
 
-                                string cableADMSName = ADMSUpdateHelper.GetADMSNameForPoleCable(
-                                    this.PoleDevice.CIRCUIT_NAME, $"{cableFeature.ObjectID}");
-                                string cableADMSAlias = ADMSUpdateHelper.GetADMSAliasForPoleCable(
-                                    this.PoleDevice.CIRCUIT_ID, $"{cableFeature.ObjectID}");
+                                LoggerHelper.Info($"Updating Cable/OHL (ObjectID: {cableInfo.CableObjectID}, AssetType: {cableInfo.CableAssetType})");
+                                LoggerHelper.Info($"ADMS_Name: {cableInfo.ADMSName}, ADMS_Alias: {cableInfo.ADMSAlias}");
 
-                                LoggerHelper.Info($"Updating Cable/OHL (ObjectID: {cableFeature.ObjectID})");
-                                LoggerHelper.Info($"ADMS_Name: {cableADMSName}, ADMS_Alias: {cableADMSAlias}");
-
-                                insp["ADMS_Name"] = cableADMSName;
-                                insp["ADMS_Alias"] = cableADMSAlias;
+                                insp["ADMS_Name"] = cableInfo.ADMSName;
+                                insp["ADMS_Alias"] = cableInfo.ADMSAlias;
                                 editOp.Modify(insp);
                             }
                         }
@@ -519,8 +511,8 @@ namespace CLP.ADMSUpdatePlugin
                             // Update ADMS Name & Alias for all selected Cable/OHL
                             insp.Load(table, selectionElement.ObjectID);
 
-                            string cableADMSName = ADMSUpdateHelper.GetADMSNameForPoleCable(this.CABLE_CIRCUIT_NAME, $"{selectionElement.ObjectID}");
-                            string cableADMSAlias = ADMSUpdateHelper.GetADMSAliasForPoleCable(this.CABLE_CIRCUIT_ID, $"{selectionElement.ObjectID}");
+                            string cableADMSName = ADMSUpdateHelper.GetADMSNameForPoleCable(this.CableModel, $"{selectionElement.ObjectID}");
+                            string cableADMSAlias = ADMSUpdateHelper.GetADMSAliasForPoleCable(this.CableModel, $"{selectionElement.ObjectID}");
 
                             LoggerHelper.Info($"Updating ADMS_Name and ADMS_Alias for Spare HV Switch (ObjectID: {selectionElement.ObjectID}, AssetGroup: {selectionElement.AssetGroup.Name}, AssetType: {selectionElement.AssetType.Name})");
                             LoggerHelper.Info($"ADMS_Name: {cableADMSName}, ADMS_Alias: {cableADMSAlias}");
@@ -745,6 +737,12 @@ namespace CLP.ADMSUpdatePlugin
             this.SecondHVSwitch = null;
             this.SpareHVSwitches = null;
             this.PoleDevice = null;
+            this.CableModel = new PoleCableInfo
+            {
+                FromCircuit = new CableCircuit(),
+                ToCircuit = new CableCircuit(),
+                Substation = new CableSubstation()
+            };
             this.LVFeature = null;
             this.LVFeatureContainer = null;
             this.ShowLVSourceFusePanel = false;
@@ -784,18 +782,19 @@ namespace CLP.ADMSUpdatePlugin
                     this.SOMCCTDisplay = this.PoleDevice.SOMCCT;
                     this.PoleDevice.RefreshLabels();
 
-                    if (this.PoleDevice.ShowCableFields)
+                    if (this.PoleDevice.ShowPoleCableInfos)
                     {
-                        this.CableADMSNameDisplay = ADMSUpdateHelper.GetADMSNameForPoleCable(
-                            this.PoleDevice.CIRCUIT_NAME, "XXXXXX");
-                        this.CableADMSAliasDisplay = ADMSUpdateHelper.GetADMSAliasForPoleCable(
-                            this.PoleDevice.CIRCUIT_ID, "XXXXXX");
+                        foreach (var cableInfo in this.PoleDevice.PoleCableInfos)
+                        {
+                            cableInfo.ADMSName = ADMSUpdateHelper.GetADMSNameForPoleCable(cableInfo, cableInfo.CableObjectID);
+                            cableInfo.ADMSAlias = ADMSUpdateHelper.GetADMSAliasForPoleCable(cableInfo, cableInfo.CableObjectID);
+                        }
                     }
                 }
                 else if(this.UpdateMode == ADMSUpdateMode.PoleCable)
                 {
-                    this.ADMSNameDisplay = ADMSUpdateHelper.GetADMSNameForPoleCable(this.CABLE_CIRCUIT_NAME, "XXXXXX");
-                    this.ADMSAliasDisplay = ADMSUpdateHelper.GetADMSAliasForPoleCable(this.CABLE_CIRCUIT_ID, "XXXXXX");
+                    this.ADMSNameDisplay = ADMSUpdateHelper.GetADMSNameForPoleCable(this.CableModel, "XXXXXX");
+                    this.ADMSAliasDisplay = ADMSUpdateHelper.GetADMSAliasForPoleCable(this.CableModel, "XXXXXX");
                 }
                 
                 });
@@ -803,6 +802,315 @@ namespace CLP.ADMSUpdatePlugin
             finally
             {
                 SetBusyState(false);
+            }
+        }
+
+        private List<PoleCableInfo> ProcessCableFeatures(
+            List<FeatureSnapshot> cableFeatures,
+            IReadOnlyList<FeatureSnapshot> traceFeatures,
+            UtilityNetwork utilityNetwork,
+            PathBuildResult pathResult)
+        {
+            var result = new List<PoleCableInfo>();
+            if (cableFeatures == null) return result;
+
+            // Build GlobalID -> FeatureSnapshot lookup for O(1) access
+            var featureByGuid = new Dictionary<Guid, FeatureSnapshot>();
+            foreach (var f in traceFeatures)
+                featureByGuid[f.GlobalID] = f;
+
+            // Build junction-to-junction adjacency from EdgeEndpoints
+            // EdgeEndpoints: cableGuid -> (fromJunction, toJunction)
+            // We want: junctionGuid -> set of connected junctionGuids (via any cable)
+            var junctionAdj = new Dictionary<Guid, HashSet<Guid>>();
+            if (pathResult?.EdgeEndpoints != null)
+            {
+                foreach (var kvp in pathResult.EdgeEndpoints)
+                {
+                    var j1 = kvp.Value.Item1;
+                    var j2 = kvp.Value.Item2;
+                    if (!junctionAdj.ContainsKey(j1)) junctionAdj[j1] = new HashSet<Guid>();
+                    if (!junctionAdj.ContainsKey(j2)) junctionAdj[j2] = new HashSet<Guid>();
+                    junctionAdj[j1].Add(j2);
+                    junctionAdj[j2].Add(j1);
+                }
+            }
+
+            var undergroundCables = new List<(FeatureSnapshot cable, PoleCableInfo info)>();
+
+            foreach (var cable in cableFeatures)
+            {
+                var info = new PoleCableInfo
+                {
+                    CableFeature = cable,
+                    CableObjectID = cable.ObjectID.ToString(),
+                    CableAssetType = cable.AssetTypeName,
+                    FromCircuit = new CableCircuit(),
+                    ToCircuit = new CableCircuit(),
+                    Substation = new CableSubstation()
+                };
+
+                if (cable.AssetTypeName == "Overhead Line")
+                {
+                    ProcessOverheadLineCable(cable, info, utilityNetwork);
+                    result.Add(info);
+                }
+                else if (cable.AssetTypeName == "Cable")
+                {
+                    undergroundCables.Add((cable, info));
+                }
+            }
+
+            // Group underground cables by terminal pair and process with shared ADMS format
+            ProcessGroupedUndergroundCables(undergroundCables, featureByGuid,
+                junctionAdj, utilityNetwork, pathResult);
+            result.AddRange(undergroundCables.Select(x => x.info));
+
+            return result;
+        }
+
+        private void ProcessOverheadLineCable(FeatureSnapshot cable, PoleCableInfo info, UtilityNetwork utilityNetwork)
+        {
+            var containmentAssocs = utilityNetwork.GetAssociations(cable.Element, AssociationType.Containment);
+            var poleAssocs = containmentAssocs.Where(a =>
+                a.FromElement.AssetGroup.Name == "Support Structure" ||
+                a.ToElement.AssetGroup.Name == "Support Structure").ToList();
+
+            int poleIndex = 0;
+            foreach (var assoc in poleAssocs)
+            {
+                var poleElement = assoc.FromElement.AssetGroup.Name == "Support Structure"
+                    ? assoc.FromElement
+                    : assoc.ToElement;
+                var poleFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(
+                    utilityNetwork, "Support Structure", poleElement.GlobalID);
+                if (poleFeature == null) continue;
+
+                string poleNum = poleFeature.GetString("polenum");
+                string circuitName = poleFeature.Attributes.ContainsKey("circuitname")
+                    ? poleFeature.Attributes["circuitname"]?.ToString() : null;
+                string circuitId = poleFeature.Attributes.ContainsKey("circuitid")
+                    ? poleFeature.Attributes["circuitid"]?.ToString() : null;
+                var circuit = new CableCircuit { CircuitName = circuitName, CircuitId = circuitId };
+
+                if (poleIndex == 0)
+                {
+                    info.FromPoleNum = poleNum;
+                    info.FromCircuit = circuit;
+                }
+                else if (poleIndex == 1)
+                {
+                    info.ToPoleNum = poleNum;
+                    info.ToCircuit = circuit;
+                }
+                poleIndex++;
+            }
+        }
+
+        private void ProcessGroupedUndergroundCables(
+            List<(FeatureSnapshot cable, PoleCableInfo info)> cables,
+            Dictionary<Guid, FeatureSnapshot> featureByGuid,
+            Dictionary<Guid, HashSet<Guid>> junctionAdj,
+            UtilityNetwork utilityNetwork,
+            PathBuildResult pathResult)
+        {
+            if (pathResult?.EdgeEndpoints == null || cables.Count == 0) return;
+
+            // First pass: find terminal pair for each cable
+            var cableTerminals = new List<(FeatureSnapshot cable, PoleCableInfo info, Guid sourceGuid, Guid endGuid)>();
+            foreach (var (cable, info) in cables)
+            {
+                if (!pathResult.EdgeEndpoints.TryGetValue(cable.GlobalID, out var endpoints))
+                {
+                    LoggerHelper.Info($"No EdgeEndpoints found for cable (GlobalID: {cable.GlobalID}, ObjectID: {cable.ObjectID})");
+                    continue;
+                }
+                var sourceGuid = FindTerminalEndpoint(endpoints.Item1, endpoints.Item2, junctionAdj, featureByGuid);
+                var endGuid = FindTerminalEndpoint(endpoints.Item2, endpoints.Item1, junctionAdj, featureByGuid);
+                cableTerminals.Add((cable, info, sourceGuid, endGuid));
+            }
+
+            // Group by normalized terminal pair
+            var groups = new Dictionary<(Guid, Guid), List<(FeatureSnapshot cable, PoleCableInfo info, Guid sourceGuid, Guid endGuid)>>();
+            foreach (var ct in cableTerminals)
+            {
+                var key = ct.sourceGuid.CompareTo(ct.endGuid) <= 0
+                    ? (ct.sourceGuid, ct.endGuid)
+                    : (ct.endGuid, ct.sourceGuid);
+                if (!groups.TryGetValue(key, out var list))
+                {
+                    list = new List<(FeatureSnapshot, PoleCableInfo, Guid, Guid)>();
+                    groups[key] = list;
+                }
+                list.Add(ct);
+            }
+
+            // Process each group: resolve direction, process endpoints once, copy shared data
+            foreach (var group in groups.Values)
+            {
+                var first = group[0];
+                featureByGuid.TryGetValue(first.sourceGuid, out var sourceFeature);
+                featureByGuid.TryGetValue(first.endGuid, out var endFeature);
+
+                var (fromFeature, toFeature) = ResolveCableDirection(sourceFeature, endFeature);
+
+                ProcessCableEndpoint(fromFeature, first.info, utilityNetwork, isFrom: true);
+                ProcessCableEndpoint(toFeature, first.info, utilityNetwork, isFrom: false);
+
+                // Copy shared data to all other cables in the group
+                for (int i = 1; i < group.Count; i++)
+                {
+                    var info = group[i].info;
+                    info.FromCircuit = new CableCircuit
+                    {
+                        CircuitName = first.info.FromCircuit?.CircuitName,
+                        CircuitId = first.info.FromCircuit?.CircuitId
+                    };
+                    info.ToCircuit = new CableCircuit
+                    {
+                        CircuitName = first.info.ToCircuit?.CircuitName,
+                        CircuitId = first.info.ToCircuit?.CircuitId
+                    };
+                    info.Substation = new CableSubstation
+                    {
+                        SSName = first.info.Substation?.SSName,
+                        SSNum = first.info.Substation?.SSNum
+                    };
+                    info.FromPoleNum = first.info.FromPoleNum;
+                    info.ToPoleNum = first.info.ToPoleNum;
+                }
+            }
+        }
+
+        private (FeatureSnapshot from, FeatureSnapshot to) ResolveCableDirection(
+            FeatureSnapshot source, FeatureSnapshot end)
+        {
+            if (source == null) return (end, source);
+            if (end == null) return (source, end);
+
+            // Riser is always "From", Subring CB is always "To"
+            if (source.AssetTypeName == "Riser" && end.AssetTypeName == "Subring Circuit Breaker")
+                return (source, end);
+            if (source.AssetTypeName == "Subring Circuit Breaker" && end.AssetTypeName == "Riser")
+                return (end, source);
+
+            // Same type: use source as From (consistent within group)
+            return (source, end);
+        }
+
+        private Guid FindTerminalEndpoint(
+            Guid startJunction,
+            Guid skipJunction,
+            Dictionary<Guid, HashSet<Guid>> junctionAdj,
+            Dictionary<Guid, FeatureSnapshot> featureByGuid)
+        {
+            // Check if start junction itself is a terminal
+            if (featureByGuid.TryGetValue(startJunction, out var startFeature) &&
+                (startFeature.AssetTypeName == "Riser" || startFeature.AssetTypeName == "Subring Circuit Breaker"))
+                return startJunction;
+
+            // BFS through junction chain, skipping the cable's other endpoint to avoid going backward
+            var visited = new HashSet<Guid> { startJunction, skipJunction };
+            var queue = new Queue<Guid>();
+            queue.Enqueue(startJunction);
+
+            while (queue.Count > 0)
+            {
+                var junction = queue.Dequeue();
+                if (!junctionAdj.TryGetValue(junction, out var neighbors)) continue;
+                foreach (var neighbor in neighbors)
+                {
+                    if (visited.Contains(neighbor)) continue;
+                    visited.Add(neighbor);
+
+                    if (featureByGuid.TryGetValue(neighbor, out var feat) &&
+                        (feat.AssetTypeName == "Riser" || feat.AssetTypeName == "Subring Circuit Breaker"))
+                        return neighbor;
+
+                    queue.Enqueue(neighbor);
+                }
+            }
+
+            LoggerHelper.Info($"No terminal endpoint (Riser/Subring CB) found tracing from junction {startJunction}");
+            return startJunction;
+        }
+
+        private void ProcessCableEndpoint(
+            FeatureSnapshot endpoint,
+            PoleCableInfo info,
+            UtilityNetwork utilityNetwork,
+            bool isFrom)
+        {
+            if (endpoint == null) return;
+
+            if (endpoint.AssetTypeName == "Subring Circuit Breaker")
+            {
+                var cbAssocs = utilityNetwork.GetAssociations(endpoint.Element, AssociationType.Containment);
+                var substationAssoc = cbAssocs.FirstOrDefault(a =>
+                    a.FromElement.AssetGroup.Name == "Substation" ||
+                    a.ToElement.AssetGroup.Name == "Substation");
+                if (substationAssoc != null)
+                {
+                    var substationElement = substationAssoc.FromElement.AssetGroup.Name == "Substation"
+                        ? substationAssoc.FromElement
+                        : substationAssoc.ToElement;
+                    var substationFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(
+                        utilityNetwork, "Substation", substationElement.GlobalID);
+                    if (substationFeature != null)
+                    {
+                        info.Substation = new CableSubstation
+                        {
+                            SSName = substationFeature.Attributes.ContainsKey("SSNAME")
+                                ? substationFeature.Attributes["SSNAME"]?.ToString() : null,
+                            SSNum = substationFeature.Attributes.ContainsKey("SSNUM")
+                                ? substationFeature.Attributes["SSNUM"]?.ToString() : null
+                        };
+                    }
+                }
+                var circuit = new CableCircuit
+                {
+                    CircuitName = endpoint.Attributes.ContainsKey("circuitname")
+                        ? endpoint.Attributes["circuitname"]?.ToString() : null,
+                    CircuitId = endpoint.Attributes.ContainsKey("circuitid")
+                        ? endpoint.Attributes["circuitid"]?.ToString() : null
+                };
+                if (isFrom) info.FromCircuit = circuit;
+                else info.ToCircuit = circuit;
+            }
+            else if (endpoint.AssetTypeName == "Riser")
+            {
+                var riserAssocs = utilityNetwork.GetAssociations(endpoint.Element, AssociationType.Containment);
+                var poleAssoc = riserAssocs.FirstOrDefault(a =>
+                    a.FromElement.AssetGroup.Name == "Support Structure" ||
+                    a.ToElement.AssetGroup.Name == "Support Structure");
+                if (poleAssoc != null)
+                {
+                    var poleElement = poleAssoc.FromElement.AssetGroup.Name == "Support Structure"
+                        ? poleAssoc.FromElement
+                        : poleAssoc.ToElement;
+                    var poleFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(
+                        utilityNetwork, "Support Structure", poleElement.GlobalID);
+                    if (poleFeature != null)
+                    {
+                        string poleNum = poleFeature.GetString("polenum");
+                        string circuitName = poleFeature.Attributes.ContainsKey("circuitname")
+                            ? poleFeature.Attributes["circuitname"]?.ToString() : null;
+                        string circuitId = poleFeature.Attributes.ContainsKey("circuitid")
+                            ? poleFeature.Attributes["circuitid"]?.ToString() : null;
+                        var circuit = new CableCircuit { CircuitName = circuitName, CircuitId = circuitId };
+
+                        if (isFrom)
+                        {
+                            info.FromPoleNum = poleNum;
+                            info.FromCircuit = circuit;
+                        }
+                        else
+                        {
+                            info.ToPoleNum = poleNum;
+                            info.ToCircuit = circuit;
+                        }
+                    }
+                }
             }
         }
 
@@ -1632,6 +1940,7 @@ namespace CLP.ADMSUpdatePlugin
                                 var elementAssociations = utilityNetwork.GetAssociations(startElement);
                                 Pole_Model first = null;
                                 List<FeatureSnapshot> cableFeatures = null;
+                                IReadOnlyList<FeatureSnapshot> allTraceFeatures = null;
                                 bool isSingleDevice = false;
                                 foreach (var elementAssociation in elementAssociations)
                                 {
@@ -1661,6 +1970,7 @@ namespace CLP.ADMSUpdatePlugin
                                         string isolatorToSsName = null;
                                         string isolatorToSsNum = null;
                                         PathBuildResult isolatorPathResult = null;
+                                        PathBuildResult cablePathResult = null;
                                         firstSwitchFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, elementAssociation.ToElement.AssetGroup.Name, elementAssociation.ToElement.GlobalID);
                                         firstPoleFeature = FeatureQueryHelper.QueryFeatureSnapshotByGlobalId(utilityNetwork, elementAssociation.FromElement.AssetGroup.Name, elementAssociation.FromElement.GlobalID);
 
@@ -1696,12 +2006,16 @@ namespace CLP.ADMSUpdatePlugin
                                                 }
 
                                                 LoadingStatusText = "Running trace...";
-                                                var traceFeatures = await UtilityNetworkTraceRunner.RunConnectedTraceAsync(
+                                                IReadOnlyList<FeatureSnapshot> traceFeatures;
+                                                PathBuildResult fusePathResult;
+                                                (traceFeatures, fusePathResult) = await UtilityNetworkTraceRunner.ExportConnectedTraceAsync(
                                                     utilityNetwork,
                                                     utilityNetworkDefinition,
                                                     startElement,
                                                     new TraceRunRequest { TierName = "HV", TerminalName = "Node 2", Preset = TraceBarrierPreset.HvFuse },
                                                     features => HighlightPathOnMapAsync(utilityNetwork, features));
+                                                cablePathResult = fusePathResult;
+                                                allTraceFeatures = traceFeatures;
                                                 tracedFusePoleNums = new PoleOptionList();
                                                 tracedFusePoleNums.AddRange(traceFeatures
                                                     .Where(p => p.NetworkSourceName == "StructureJunction"
@@ -1755,6 +2069,8 @@ namespace CLP.ADMSUpdatePlugin
                                                     startElement,
                                                     new TraceRunRequest { TierName = "HV", TerminalName = "SS:S1", Preset = TraceBarrierPreset.HvIsolator },
                                                     features => HighlightPathOnMapAsync(utilityNetwork, features));
+                                                cablePathResult = isolatorPathResult;
+                                                allTraceFeatures = traceFeatures;
                                                 isolatorTraceHasSubringCB = traceFeatures.Any(p => p.AssetTypeName == "Subring Circuit Breaker" || p.AssetTypeName == "Switch");
                                                 tracedIsolatorPoleNums = new PoleOptionList();
                                                 foreach (var pf in traceFeatures.Where(p => p.NetworkSourceName == "StructureJunction"
@@ -1972,6 +2288,7 @@ namespace CLP.ADMSUpdatePlugin
                                         }
                                         if (!first.IsTxOrPMSInPole && first.ASSET_TYPE == "Isolator") first.ShowFromSubstationFields = false;
                                         first.CableFeatures = cableFeatures;
+                                        first.PoleCableInfos = ProcessCableFeatures(cableFeatures, allTraceFeatures, utilityNetwork, cablePathResult);
                                         this.PoleDevice = first;
                                         this.ShowSearchPanel = false;
                                         this.ShowPolePanel = true;
@@ -2004,7 +2321,9 @@ namespace CLP.ADMSUpdatePlugin
 
                                         PoleOptionList tracedSubringPoleNums = new PoleOptionList();
                                         LoadingStatusText = "Running trace...";
-                                        var subringTraceFeatures = await UtilityNetworkTraceRunner.RunConnectedTraceAsync(
+                                        IReadOnlyList<FeatureSnapshot> subringTraceFeatures;
+                                        PathBuildResult subringPathResult;
+                                        (subringTraceFeatures, subringPathResult) = await UtilityNetworkTraceRunner.ExportConnectedTraceAsync(
                                             utilityNetwork,
                                             utilityNetworkDefinition,
                                             startElement,
@@ -2032,6 +2351,7 @@ namespace CLP.ADMSUpdatePlugin
                                         first.Pole = firstSubstationFeature;
                                         first.ToPoleNoOptions = tracedSubringPoleNums;
                                         first.CableFeatures = cableFeatures;
+                                        first.PoleCableInfos = ProcessCableFeatures(cableFeatures, subringTraceFeatures, utilityNetwork, subringPathResult);
 
                                         this.PoleDevice = first;
                                         this.ShowSearchPanel = false;

@@ -7,12 +7,35 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using static ArcGIS.Desktop.Editing.Templates.EditingGroupTemplate;
 
 namespace CLP.ADMSUpdatePlugin
 {
     public class ADMSUpdateHelper
     {
+        static int CompareHierarchy(string x, string y)
+        {
+            var p1 = x.Split('/');
+            var p2 = y.Split('/');
+
+            for (int i = 0; i < Math.Min(p1.Length, p2.Length); i++)
+            {
+                bool isN1 = int.TryParse(p1[i], out int n1);
+                bool isN2 = int.TryParse(p2[i], out int n2);
+
+                int cmp = (isN1, isN2) switch
+                {
+                    (true, true) => n1.CompareTo(n2),
+                    (true, false) => -1, // Numbers before letters
+                    (false, true) => 1,  // Letters after numbers
+                    (false, false) => string.Compare(p1[i], p2[i], StringComparison.OrdinalIgnoreCase)
+                };
+
+                if (cmp != 0) return cmp;
+            }
+
+            // Shorter path (parent) comes first (e.g., "9" before "9/1")
+            return p1.Length.CompareTo(p2.Length);
+        }
         public static string HandlePrimarySubstationName(SS_TO_SS_Model first)
         {
             string scadaCode = ReplaceMultipleSpaces(first.Substation.Attributes["SCADACODE"]?.ToString());
@@ -36,18 +59,15 @@ namespace CLP.ADMSUpdatePlugin
         {
             string textA = src.SSNAME.Replace("S/S", "");
             if (src.Source.AssetTypeName == "Source Circuit Breaker")
-                textA = HandlePrimarySubstationName(src).PadRight(26);
+                textA = HandlePrimarySubstationName(src);
             if (!String.IsNullOrEmpty(src.BB_NUMBER))
             {
                 textA += $" BD {src.BB_NUMBER}";
             }
-            if (textA.Length < 25)
-            {
-                textA = ReplaceMultipleSpaces(textA).PadRight(25); // Pad the string to 25 characters
-            }
+            textA = ReplaceMultipleSpaces(textA).ToFixedLength(25);
             string textB = des.SSNAME.Replace("S/S", "");
             if (des.Source.AssetTypeName == "Source Circuit Breaker")
-                textB = HandlePrimarySubstationName(des).PadRight(26);
+                textB = HandlePrimarySubstationName(des);
             if (des.Source.AssetGroupName == "Transformer")
             {
                 string txPart = String.IsNullOrEmpty(des.TX_NO) ? "" : $" D{des.TX_NO}";
@@ -70,10 +90,7 @@ namespace CLP.ADMSUpdatePlugin
             else {
                 textC = " LINE_" + cable.ObjectID; // Use the objectid from the cable
             }
-            if (textC.Length < 13)
-            {
-                textC = textC.PadRight(13); // Pad the string to 13 characters
-            }
+            textC = textC.ToFixedLength(13);
             string combinedAB = textA + "-" + textB;
             string combined = combinedAB + textC;
             
@@ -118,11 +135,8 @@ namespace CLP.ADMSUpdatePlugin
             {
                 textB += $" {src.SERIALNUMBER}";
             }
-            string textC = isTemplate? "L" + "".PadRight(6,'X'): " L" + cable.ObjectID; // Use the objectid from the cable
-            if (textC.Length < 9)
-            {
-                textC = textC.PadRight(9); // Pad the string to 9 characters
-            }
+            string textC = isTemplate? "L" + "".ToFixedLength(6, 'X'): " L" + cable.ObjectID; // Use the objectid from the cable
+            textC = textC.ToFixedLength(9);
             string combinedAB = textA + "-" + textB;
             string combined = combinedAB + textC;
             int totalLength = combined.Length;
@@ -146,7 +160,7 @@ namespace CLP.ADMSUpdatePlugin
                 return await QueuedTask.Run(() =>
                 {
                     // Part 1: 26 characters (substation name)
-                    string part1 = ReplaceMultipleSpaces(model.SSNAME.Replace("S/S", "")).PadRight(26);
+                    string part1 = ReplaceMultipleSpaces(model.SSNAME.Replace("S/S", "")).ToFixedLength(26);
                     // Get the switch table and the complex switch model field
                     var switchTable = un.GetTable(model.Source.Element.NetworkSource);
                     var fld_complex_switch_model = switchTable.GetDefinition().GetFields()
@@ -161,9 +175,9 @@ namespace CLP.ADMSUpdatePlugin
                         sBB_NUMBER = model.BB_NUMBER;
                     }
                     string bbSourcePart = string.IsNullOrEmpty(sBB_NUMBER) ? "" : $" BD {sBB_NUMBER}";
-                    string part2 = ReplaceMultipleSpaces($"{complexSwitchModelName}{bbSourcePart}").PadRight(41);
+                    string part2 = ReplaceMultipleSpaces($"{complexSwitchModelName}{bbSourcePart}").ToFixedLength(41);
                     // Part 3: 13 characters ("BB-SEGM")
-                    string part3 = "BB-SEGM".PadRight(13);
+                    string part3 = "BB-SEGM".ToFixedLength(13);
                     // Return the concatenated result
                     return $"{part1}{part2}{part3}";
                 });
@@ -180,7 +194,7 @@ namespace CLP.ADMSUpdatePlugin
             if (model.Busbar != null)
             {
                 // Part 1: 7 characters (substation number)
-                string substationSource = model.SSCODE.PadRight(7);
+                string substationSource = model.SSCODE.ToFixedLength(7);
                 string sBB_NUMBER = model.Busbar.Attributes["BB_NUMBER"]?.ToString();
                 if (string.IsNullOrEmpty(sBB_NUMBER))
                 {
@@ -189,10 +203,10 @@ namespace CLP.ADMSUpdatePlugin
                 // Part 2: 15 characters (BB number and "BB")
                 string bbSourcePart = string.IsNullOrEmpty(sBB_NUMBER) ? "" : $"BD {sBB_NUMBER}";
                 string bbPart = $" BB";
-                string part2 = $"{bbSourcePart}{bbPart}".PadRight(15);
+                string part2 = $"{bbSourcePart}{bbPart}".ToFixedLength(15);
 
                 // Part 3: 8 characters ("BB-SEGM")
-                string part3 = "BB-SEGM ".PadRight(8);
+                string part3 = "BB-SEGM ".ToFixedLength(8);
 
                 return $"{substationSource}{part2}{part3}";
             }
@@ -203,7 +217,7 @@ namespace CLP.ADMSUpdatePlugin
         {
             string substationSource = first.SSNAME.Replace("S/S", "");
             if (first.Source.AssetTypeName == "Source Circuit Breaker")
-                substationSource = HandlePrimarySubstationName(first).PadRight(26);
+                substationSource = HandlePrimarySubstationName(first).ToFixedLength(26);
             string bbSourcePart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $" BD {first.BB_NUMBER}";
             return ReplaceMultipleSpaces($"{substationSource}{bbSourcePart}");
         }
@@ -212,7 +226,7 @@ namespace CLP.ADMSUpdatePlugin
         {
             string substationTarget = ReplaceMultipleSpaces(second.SSNAME.Replace("S/S", ""));
             if (second.Source.AssetTypeName == "Source Circuit Breaker")
-                substationTarget = HandlePrimarySubstationName(second).PadRight(26);
+                substationTarget = HandlePrimarySubstationName(second).ToFixedLength(26);
             string bbTargetPart = string.IsNullOrEmpty(second.BB_NUMBER) ? "" : $" BD {second.BB_NUMBER} ";
             string serialNumberPart = string.IsNullOrEmpty(first.SERIALNUMBER) ? "" : $" #{first.SERIALNUMBER}";
             var panelPart = "";
@@ -291,13 +305,13 @@ namespace CLP.ADMSUpdatePlugin
         public static string GetADMSNameForCBToCB(SS_TO_SS_Model first, SS_TO_SS_Model second)
         {
             // ADMS Name for CB to CB
-            string substationSource = ReplaceMultipleSpaces(first.SSNAME.Replace("S/S", "")).PadRight(26);
+            string substationSource = ReplaceMultipleSpaces(first.SSNAME.Replace("S/S", "")).ToFixedLength(26);
             if (first.Source.AssetTypeName == "Source Circuit Breaker")
-                substationSource = HandlePrimarySubstationName(first).PadRight(26);
+                substationSource = HandlePrimarySubstationName(first).ToFixedLength(26);
             string bbSourcePart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $"BD {first.BB_NUMBER}-";
             string substationTarget = ReplaceMultipleSpaces(second.SSNAME.Replace("S/S", ""));
             if (second.Source.AssetTypeName == "Source Circuit Breaker")
-                substationTarget = HandlePrimarySubstationName(second).PadRight(26);
+                substationTarget = HandlePrimarySubstationName(second).ToFixedLength(26);
             string bbTargetPart = "";
             if (first.SSCODE == second.SSCODE)
             {
@@ -309,29 +323,29 @@ namespace CLP.ADMSUpdatePlugin
             }
                 
             string serialNumberPart = string.IsNullOrEmpty(first.SERIALNUMBER) ? "" : $" #{first.SERIALNUMBER}";
-            string part2 = $"{bbSourcePart}{substationTarget}{bbTargetPart}{serialNumberPart}".PadRight(41);
+            string part2 = $"{bbSourcePart}{substationTarget}{bbTargetPart}{serialNumberPart}".ToFixedLength(41);
             string assetTypeAbbreviation = AssetTypeAbbreviations.ContainsKey(first.Source.AssetTypeName)
                                             ? AssetTypeAbbreviations[first.Source.AssetTypeName]
                                             : "";
-            string part3 = $"{assetTypeAbbreviation} ".PadRight(13);
+            string part3 = $"{assetTypeAbbreviation} ".ToFixedLength(13);
             if (first.Source.AssetTypeName == "Source Circuit Breaker")
-                part3 = $"CBD{first.PANEL_NO ?? ""}5".PadRight(13);
+                part3 = $"CBD{first.PANEL_NO ?? ""}5".ToFixedLength(13);
             return $"{substationSource}{part2}{part3}";
         }
 
         public static string GetADMSNameForSpareCB(SS_TO_SS_Model first)
         {
-            string substationSource = ReplaceMultipleSpaces(first.SSNAME.Replace("S/S", "")).PadRight(26);
+            string substationSource = ReplaceMultipleSpaces(first.SSNAME.Replace("S/S", "")).ToFixedLength(26);
             if (first.Source.AssetTypeName == "Source Circuit Breaker")
-                substationSource = HandlePrimarySubstationName(first).PadRight(26);
+                substationSource = HandlePrimarySubstationName(first).ToFixedLength(26);
             string bbPart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $"B{first.BB_NUMBER}/";
-            string part2 = $"SPARE (PNL {bbPart}{first.PANEL_NO})".PadRight(41);
+            string part2 = $"SPARE (PNL {bbPart}{first.PANEL_NO})".ToFixedLength(41);
             string assetTypeAbbreviation = AssetTypeAbbreviations.ContainsKey(first.Source.AssetTypeName)
                                             ? AssetTypeAbbreviations[first.Source.AssetTypeName]
                                             : "";
-            string part3 = $"{assetTypeAbbreviation} ".PadRight(13);
+            string part3 = $"{assetTypeAbbreviation} ".ToFixedLength(13);
             if (first.Source.AssetTypeName == "Source Circuit Breaker")
-                part3 = $"CBD{first.PANEL_NO ?? ""}5".PadRight(13);
+                part3 = $"CBD{first.PANEL_NO ?? ""}5".ToFixedLength(13);
             return $"{substationSource}{part2}{part3}";
         }
 
@@ -345,7 +359,7 @@ namespace CLP.ADMSUpdatePlugin
         public static string GetADMSAliasForCBToCB(SS_TO_SS_Model first, SS_TO_SS_Model second)
         {
             // ADMS Alias for CB to CB
-            string substationSource = first.SSCODE.PadRight(7);
+            string substationSource = first.SSCODE.ToFixedLength(7);
             string bbSourcePart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $"B{first.BB_NUMBER}/";
             string panelPart = (string.IsNullOrEmpty(first.PANEL_NO) ? "" : first.PANEL_NO);
             string assetTypeAbbreviation = AssetTypeAbbreviations.ContainsKey(first.Source.AssetTypeName)
@@ -354,21 +368,21 @@ namespace CLP.ADMSUpdatePlugin
             string panelUnit = "PNL";
             if (first.SSNAME.Contains("CUST EQPT"))
                 panelUnit = "BAY";
-            string part2 = $"{panelUnit} {bbSourcePart}{panelPart}".PadRight(15);
+            string part2 = $"{panelUnit} {bbSourcePart}{panelPart}".ToFixedLength(15);
             if (first.Substation.AssetGroupName == "HV Switching Assembly")
             {
                 panelUnit = "W";
-                part2 = $"{panelUnit}{panelPart}".PadRight(15);
+                part2 = $"{panelUnit}{panelPart}".ToFixedLength(15);
             }
-            string part3 = $"{assetTypeAbbreviation} ".PadRight(8);
+            string part3 = $"{assetTypeAbbreviation} ".ToFixedLength(8);
             return $"{substationSource}{part2}{part3}";
         }
-        //两个以上的空格remove掉
+        //???????remove?
 
         public static string GetADMSNameForCBToTransformer(SS_TO_SS_Model first, SS_TO_SS_Model second)
         {
             // ADMS Name for CB to Transformer
-            string substationSource = ReplaceMultipleSpaces(first.SSNAME.Replace("S/S", "")).PadRight(26);
+            string substationSource = ReplaceMultipleSpaces(first.SSNAME.Replace("S/S", "")).ToFixedLength(26);
             string bbSourcePart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $"BD {first.BB_NUMBER}-";
             string txPart = "";
             if (first.SSNAME != second.SSNAME) // If not in the same substation
@@ -381,27 +395,27 @@ namespace CLP.ADMSUpdatePlugin
                 txPart = "L/Tx ";
                 if (!string.IsNullOrEmpty(second.TX_NO)) txPart += $"D{second.TX_NO}";
             }
-            string part2 = ReplaceMultipleSpaces($"{bbSourcePart}{txPart}").PadRight(41);
+            string part2 = ReplaceMultipleSpaces($"{bbSourcePart}{txPart}").ToFixedLength(41);
             string assetTypeAbbreviation = AssetTypeAbbreviations.ContainsKey(first.Source.AssetTypeName)
                                             ? AssetTypeAbbreviations[first.Source.AssetTypeName]
                                             : "";
             //CB LBS
-            string part3 = $"{assetTypeAbbreviation}".PadRight(13);
+            string part3 = $"{assetTypeAbbreviation}".ToFixedLength(13);
 
             return $"{substationSource}{part2}{part3}";
         }
 
         public static string GetADMSNameForTransformer(SS_TO_SS_Model first)
         {
-            // Part 1: substation_name(source) (如果有S/S 就替换为 "") + 空格
-            string substationSource = ReplaceMultipleSpaces(first.SSNAME.Replace("S/S", "")).PadRight(26);
+            // Part 1: substation_name(source) (???S/S ???? "") + ??
+            string substationSource = ReplaceMultipleSpaces(first.SSNAME.Replace("S/S", "")).ToFixedLength(26);
 
-            // Part 2: "Tx " + transformer_number != null ? "D{transformer_number}" : "" + 空格
+            // Part 2: "Tx " + transformer_number != null ? "D{transformer_number}" : "" + ??
             string transformerPart = string.IsNullOrEmpty(first.TX_NO) ? "" : $"D{first.TX_NO}";
-            string part2 = $"Tx {transformerPart}".PadRight(41);
+            string part2 = $"Tx {transformerPart}".ToFixedLength(41);
 
-            // Part 3: "LOAD" + 空格
-            string part3 = "LOAD".PadRight(13);
+            // Part 3: "LOAD" + ??
+            string part3 = "LOAD".ToFixedLength(13);
 
             return $"{substationSource}{part2}{part3}";
         }
@@ -409,14 +423,14 @@ namespace CLP.ADMSUpdatePlugin
         public static string GetADMSAliasForTransformer(SS_TO_SS_Model first)
         {
             // ADMS Alias for Transformer
-            string substationSource = first.SSCODE.PadRight(7);
+            string substationSource = first.SSCODE.ToFixedLength(7);
             string transformerPart = string.IsNullOrEmpty(first.TX_NO) ? "D1" : $"D{first.TX_NO}";
             //if (!string.IsNullOrEmpty(first.TX_NO)
             //    && int.TryParse(first.TX_NO, out int tx_integer)
             //    && int.Parse(first.TX_NO) >= 10)
             //    transformerPart = $"D{(char)(int.Parse(first.TX_NO) + 55)}";
-            string part2 = $"{transformerPart}".PadRight(15);
-            string part3 = "LOAD".PadRight(8);
+            string part2 = $"{transformerPart}".ToFixedLength(15);
+            string part3 = "LOAD".ToFixedLength(8);
             return $"{substationSource}{part2}{part3}";
         }
     
@@ -424,9 +438,9 @@ namespace CLP.ADMSUpdatePlugin
         {
             string part1, part2, part3;
             if (first.IsTxOrPMSInPole)
-                part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NAME?.Replace("S/S", "")}").PadRight(26);
+                part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NAME?.Replace("S/S", "")}").ToFixedLength(26);
             else
-                part1 = ReplaceMultipleSpaces($"{first.CIRCUIT_NAME}").PadRight(26);
+                part1 = ReplaceMultipleSpaces($"{first.CIRCUIT_NAME}").ToFixedLength(26);
             part2 = $"P{first.FROM_POLE_NUM}";
             if (!string.IsNullOrEmpty(first.TO_POLE_NUM))
             {
@@ -435,8 +449,8 @@ namespace CLP.ADMSUpdatePlugin
                 else part2 += $"-{first.TO_POLE_NUM}";
             }
             else part2 += $"-{first.TO_SS_NAME?.Replace("S/S", "")}";
-            part2 = ReplaceMultipleSpaces(part2).PadRight(41);
-            part3 = $"ISOL".PadRight(13);
+            part2 = ReplaceMultipleSpaces(part2).ToFixedLength(41);
+            part3 = $"ISOL".ToFixedLength(13);
             return $"{part1}{part2}{part3}";
         }
 
@@ -444,9 +458,9 @@ namespace CLP.ADMSUpdatePlugin
         {
             string part1, part2, part3;
             if (first.IsTxOrPMSInPole)
-                part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NUM}").PadRight(7);
+                part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NUM}").ToFixedLength(7);
             else
-                part1 = ReplaceMultipleSpaces($"L{first.CIRCUIT_ID}").PadRight(7);
+                part1 = ReplaceMultipleSpaces($"L{first.CIRCUIT_ID}").ToFixedLength(7);
             part2 = $"P{first.FROM_POLE_NUM}";
             if (!string.IsNullOrEmpty(first.TO_POLE_NUM)) 
             {
@@ -458,8 +472,8 @@ namespace CLP.ADMSUpdatePlugin
                 else part2 += $"-{first.TO_POLE_NUM}";
             }
             else part2 += $"-{first.TO_SS_NUM}";
-            part2 = ReplaceMultipleSpaces(part2).PadRight(15);
-            part3 = $"ISOL".PadRight(8);
+            part2 = ReplaceMultipleSpaces(part2).ToFixedLength(15);
+            part3 = $"ISOL".ToFixedLength(8);
             return $"{part1}{part2}{part3}";
         }
 
@@ -467,14 +481,14 @@ namespace CLP.ADMSUpdatePlugin
         {
             string part1, part2, part3;
             if (first.IsTxOrPMSInPole)
-                part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NAME?.Replace("S/S", "")}").PadRight(26);
+                part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NAME?.Replace("S/S", "")}").ToFixedLength(26);
             else
-                part1 = ReplaceMultipleSpaces($"{first.CIRCUIT_NAME}").PadRight(26);
+                part1 = ReplaceMultipleSpaces($"{first.CIRCUIT_NAME}").ToFixedLength(26);
             part2 = $"P{first.FROM_POLE_NUM}";
             if (first.IsTxOrPMSInPole && first.InPoleType != "PMS") part2 += $"-{first.FROM_SS_NAME?.Replace("S/S", "")} P/M Tx";
             else part2 += $"-P{first.TO_POLE_NUM}";
-                part2 = ReplaceMultipleSpaces(part2).PadRight(41);
-            part3 = $"FUSE".PadRight(13);
+                part2 = ReplaceMultipleSpaces(part2).ToFixedLength(41);
+            part3 = $"FUSE".ToFixedLength(13);
             return $"{part1}{part2}{part3}";
         }
 
@@ -482,9 +496,9 @@ namespace CLP.ADMSUpdatePlugin
         {
             string part1, part2, part3;
             if (first.IsTxOrPMSInPole)
-                part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NUM}").PadRight(7);
+                part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NUM}").ToFixedLength(7);
             else
-                part1 = ReplaceMultipleSpaces($"L{first.CIRCUIT_ID}").PadRight(7);
+                part1 = ReplaceMultipleSpaces($"L{first.CIRCUIT_ID}").ToFixedLength(7);
             part2 = $"P{first.FROM_POLE_NUM}";
             if (first.IsTxOrPMSInPole && first.InPoleType != "PMS") part2 += $"-{first.FROM_SS_NUM} P/M";
             else
@@ -493,17 +507,17 @@ namespace CLP.ADMSUpdatePlugin
                 else part2 += $"-P{first.TO_POLE_NUM}";
             }
             if (part2.Length >= 15) part2 = ReplaceMultipleSpaces(part2)[..14];
-            part2 = part2.PadRight(15);
-            part3 = $"FUSE".PadRight(8);
+            part2 = part2.ToFixedLength(15);
+            part3 = $"FUSE".ToFixedLength(8);
             return $"{part1}{part2}{part3}";
         }
 
         public static string GetADMSNameForTransformer(Pole_Model first)
         {
             string part1, part2, part3;
-            part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NAME?.Replace("S/S", "")}").PadRight(26);
-            part2 = $"P/M Tx".PadRight(41);
-            part3 = $"LOAD".PadRight(13);
+            part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NAME?.Replace("S/S", "")}").ToFixedLength(26);
+            part2 = $"P/M Tx".ToFixedLength(41);
+            part3 = $"LOAD".ToFixedLength(13);
             return $"{part1}{part2}{part3}";
         }
 
@@ -516,55 +530,55 @@ namespace CLP.ADMSUpdatePlugin
         public static string GetADMSAliasForTransformer(Pole_Model first)
         {
             string part1, part2, part3;
-            part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NUM}").PadRight(7);
-            part2 = $"D0".PadRight(15);
-            part3 = $"LOAD".PadRight(8);
+            part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NUM}").ToFixedLength(7);
+            part2 = $"D0".ToFixedLength(15);
+            part3 = $"LOAD".ToFixedLength(8);
             return $"{part1}{part2}{part3}";
         }
 
         public static string GetADMSNameForPMS(Pole_Model first)
         {
             string part1, part2, part3;
-            part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NAME?.Replace("S/S", "")}").PadRight(26);
-            part2 = $"FEEDER I".PadRight(41);
-            part3 = $"PMS".PadRight(13);
+            part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NAME?.Replace("S/S", "")}").ToFixedLength(26);
+            part2 = $"FEEDER I".ToFixedLength(41);
+            part3 = $"PMS".ToFixedLength(13);
             return $"{part1}{part2}{part3}";
         }
 
         public static string GetADMSAliasForPMS(Pole_Model first)
         {
             string part1, part2, part3;
-            part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NUM}").PadRight(7);
-            part2 = $"FDR I".PadRight(15);
-            part3 = $"PMS".PadRight(8);
+            part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NUM}").ToFixedLength(7);
+            part2 = $"FDR I".ToFixedLength(15);
+            part3 = $"PMS".ToFixedLength(8);
             return $"{part1}{part2}{part3}";
         }
 
         public static string GetADMSNameForSubringCB(Pole_Model first)
         {
             // ADMS Name for Subring CB
-            string substationSource = ReplaceMultipleSpaces(first.FROM_SS_NAME.Replace("S/S", "")).PadRight(26);
+            string substationSource = ReplaceMultipleSpaces(first.FROM_SS_NAME.Replace("S/S", "")).ToFixedLength(26);
             //string bbSourcePart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $"BD {first.BB_NUMBER}-";
             string substationTarget = ReplaceMultipleSpaces($"{first.CIRCUIT_NAME}");
             string bbTargetPart = "";
 
             //string serialNumberPart = string.IsNullOrEmpty(first.SERIALNUMBER) ? "" : $" #{first.SERIALNUMBER}";
-            string part2 = $"{substationTarget}{bbTargetPart}".PadRight(41);
+            string part2 = $"{substationTarget}{bbTargetPart}".ToFixedLength(41);
             string assetTypeAbbreviation = "CB";
-            string part3 = $"{assetTypeAbbreviation} ".PadRight(13);
+            string part3 = $"{assetTypeAbbreviation} ".ToFixedLength(13);
             return $"{substationSource}{part2}{part3}";
         }
 
         public static string GetADMSAliasForSubringCB(Pole_Model first)
         {
             // ADMS Alias for SubringCB
-            string substationSource = first.FROM_SS_NUM.PadRight(7);
+            string substationSource = first.FROM_SS_NUM.ToFixedLength(7);
             //string bbSourcePart = string.IsNullOrEmpty(first.BB_NUMBER) ? "" : $"B{first.BB_NUMBER}/";
             string panelPart = (string.IsNullOrEmpty(first.FROM_POLE_NUM) ? "" : first.FROM_POLE_NUM);
             string assetTypeAbbreviation = "CB";
             string panelUnit = first.FROM_SS_NAME.Contains("CUST EQPT") ? "BAY" : "PNL";
-            string part2 = $"{panelUnit} {panelPart}".PadRight(15);
-            string part3 = $"{assetTypeAbbreviation} ".PadRight(8);
+            string part2 = $"{panelUnit} {panelPart}".ToFixedLength(15);
+            string part3 = $"{assetTypeAbbreviation} ".ToFixedLength(8);
 
             return $"{substationSource}{part2}{part3}";
         }
@@ -573,53 +587,141 @@ namespace CLP.ADMSUpdatePlugin
         public static string GetADMSNameForRecloser(Pole_Model first)
         {
             string part1, part2, part3;
-            part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NAME?.Replace("S/S", "")}").PadRight(26);
-            part2 = $"FEEDER I".PadRight(41);
+            part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NAME?.Replace("S/S", "")}").ToFixedLength(26);
+            part2 = $"FEEDER I".ToFixedLength(41);
             if (first.FROM_SS_NAME.Contains("FRC"))
-                part3 = $"FRC".PadRight(13);
-            else part3 = $"RC".PadRight(13);
+                part3 = $"FRC".ToFixedLength(13);
+            else part3 = $"RC".ToFixedLength(13);
             return $"{part1}{part2}{part3}";
         }
 
         public static string GetADMSAliasForRecloser(Pole_Model first)
         {
             string part1, part2, part3;
-            part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NUM}").PadRight(7);
-            part2 = $"FDR I".PadRight(15);
+            part1 = ReplaceMultipleSpaces($"{first.FROM_SS_NUM}").ToFixedLength(7);
+            part2 = $"FDR I".ToFixedLength(15);
             if (first.FROM_SS_NAME.Contains("FRC"))
-                part3 = $"FRC".PadRight(8);
-            else part3 = $"RC".PadRight(8);
+                part3 = $"FRC".ToFixedLength(8);
+            else part3 = $"RC".ToFixedLength(8);
             return $"{part1}{part2}{part3}";
         }
-        public static string GetADMSNameForPoleCable(string circuitName, string objectID)
+        public static string GetADMSNameForPoleCable(PoleCableInfo first, string objectID)
         {
-            string part1 = circuitName?.PadRight(68);
-            string part2 = "";
-            string part3 = $"LINE_{objectID}".PadRight(12);
-            return $"{part1}{part2}{part3}";
+            // 1. Subring CB to Pole, Pole to Pole (same circuti), Pole to Pole (different circuit)
+            string part1, part2, part3;
+            //part1 = $"{ReplaceMultipleSpaces(first.CIRCUIT_NAME)}";
+            //part2 = $"P.{first.FROM_POLE_NUM}-P.{first.TO_POLE_NUM}";
+            //if (!string.IsNullOrEmpty(first.FROM_POLE_NUM) && !string.IsNullOrEmpty(first.TO_POLE_NUM) &&
+            //    CompareHierarchy(first.FROM_POLE_NUM, first.TO_POLE_NUM) > 0)
+            //    part2 = $"P.{first.TO_POLE_NUM}-P.{first.FROM_POLE_NUM}";
+            //// handle case Subring Circuit Breaker to Pole
+            //if (first.ASSET_TYPE == "Subring Circuit Breaker")
+            //    part1 = $"{ReplaceMultipleSpaces(first.FROM_SS_NAME?.Replace("S/S", ""))}";
+            //else if (first.ASSET_TYPE == "Isolator" &&
+            //    !string.IsNullOrEmpty(first.TO_SS_NUM))
+            //{
+            //    part1 = $"{ReplaceMultipleSpaces(first.TO_SS_NAME?.Replace("S/S", ""))}";
+            //    part2 = $"-{ReplaceMultipleSpaces(first.CIRCUIT_NAME)} P.{first.FROM_POLE_NUM}";
+            //}
+            //// handle case Pole to Pole (different circuit)
+            //else if (!string.IsNullOrEmpty(first.TO_CIRCUIT_ID) &&
+            //   first.CIRCUIT_ID != first.TO_CIRCUIT_ID)
+            //{
+            //    if (first.CIRCUIT_NAME.CompareTo(first.TO_CIRCUIT_NAME) > 0)
+            //    {
+            //        part1 = $"{ReplaceMultipleSpaces(first.TO_CIRCUIT_NAME)}";
+            //        part2 = $"P.{first.TO_POLE_NUM}-{ReplaceMultipleSpaces(first.CIRCUIT_NAME)} P.{first.FROM_POLE_NUM}";
+            //    }
+            //    else part2 = $"P.{first.FROM_POLE_NUM}-{first.TO_CIRCUIT_NAME} P.{first.TO_POLE_NUM}";
+            //}
+            part1 = $"{ReplaceMultipleSpaces(first.FromCircuit.CircuitName)}";
+            part2 = $"P.{first.FromPoleNum}-{first.ToPoleNum}";
+            if(!string.IsNullOrEmpty(first.FromPoleNum) && !string.IsNullOrEmpty(first.ToPoleNum) &&
+                CompareHierarchy(first.FromPoleNum, first.ToPoleNum) > 0)
+                part2 = $"P.{first.ToPoleNum}-{first.FromPoleNum}";
+            if (!string.IsNullOrEmpty(first.Substation?.SSNum))
+            {
+                part1 = $"{ReplaceMultipleSpaces(first.Substation.SSName?.Replace("S/S",""))}";
+                part2 = $"-{ReplaceMultipleSpaces(first.FromCircuit.CircuitName)}";
+            }
+            else if (!string.IsNullOrEmpty(first.ToCircuit.CircuitId) && first.FromCircuit.CircuitId != first.ToCircuit.CircuitId)
+            {
+                if(first.FromCircuit.CircuitName.CompareTo(first.ToCircuit.CircuitName) > 0)
+                {
+                    part1 = $"{ReplaceMultipleSpaces(first.ToCircuit.CircuitName)}";
+                    part2 = $"P.{first.ToPoleNum}-{ReplaceMultipleSpaces(first.FromCircuit.CircuitName)} P.{first.FromPoleNum}";
+                }
+                else part2 = $"P.{first.FromPoleNum}-{ReplaceMultipleSpaces(first.ToCircuit.CircuitName)} P.{first.ToPoleNum}";
+            }
+            part3 = $"LINE_{objectID}";
+            return $"{part1.ToFixedLength(24)}{part2.ToFixedLength(44)}{part3.ToFixedLength(12)}";
         }
 
-        public static string GetADMSAliasForPoleCable(string circuitID, string objectID)
+        public static string GetADMSAliasForPoleCable(PoleCableInfo first, string objectID)
         {
-            string part1 = $"L{circuitID}".PadRight(22);
-            string part2 = "";
-            string part3 = $"L{objectID}".PadRight(8);
-            return $"{part1}{part2}{part3}";
+            // 1. Subring CB to Pole, Pole to Pole (same circuti), Pole to Pole (different circuit)
+            string part1, part2, part3;
+            //part1 = $"L{ReplaceMultipleSpaces(first.CIRCUIT_ID)}";
+            //part2 = $"P{first.FROM_POLE_NUM}-{first.TO_POLE_NUM}";
+            //if (!string.IsNullOrEmpty(first.FROM_POLE_NUM) && !string.IsNullOrEmpty(first.TO_POLE_NUM) &&
+            //    CompareHierarchy(first.FROM_POLE_NUM, first.TO_POLE_NUM) > 0)
+            //    part2 = $"P{first.TO_POLE_NUM}-{first.FROM_POLE_NUM}";
+            //// handle case Subring Circuit Breaker to Pole
+            //if (first.ASSET_TYPE == "Subring Circuit Breaker")
+            //    part1 = $"{ReplaceMultipleSpaces(first.FROM_SS_NUM)}";
+            //else if (first.ASSET_TYPE == "Isolator" &&
+            //    !string.IsNullOrEmpty(first.TO_SS_NUM))
+            //{
+            //    part1 = $"{ReplaceMultipleSpaces(first.TO_SS_NUM)}";
+            //    part2 = $"-L{ReplaceMultipleSpaces(first.CIRCUIT_ID)} P{first.FROM_POLE_NUM}";
+            //}
+            //// handle case Pole to Pole (different circuit)
+            //else if (!string.IsNullOrEmpty(first.TO_CIRCUIT_ID) &&
+            //   first.CIRCUIT_ID != first.TO_CIRCUIT_ID)
+            //{
+            //    if (first.CIRCUIT_NAME.CompareTo(first.TO_CIRCUIT_NAME) > 0)
+            //    {
+            //        part1 = $"{ReplaceMultipleSpaces(first.TO_CIRCUIT_ID)}";
+            //        part2 = $"P{first.TO_POLE_NUM}-L{ReplaceMultipleSpaces(first.CIRCUIT_ID)} P{first.FROM_POLE_NUM}";
+            //    }
+            //    else part2 = $"P{first.FROM_POLE_NUM}-L{first.TO_CIRCUIT_ID} P{first.TO_POLE_NUM}";
+            //}
+            part1 = $"L{ReplaceMultipleSpaces(first.FromCircuit.CircuitId)}";
+            part2 = $"P{first.FromPoleNum}-{first.ToPoleNum}";
+            if (!string.IsNullOrEmpty(first.FromPoleNum) && !string.IsNullOrEmpty(first.ToPoleNum) &&
+                CompareHierarchy(first.FromPoleNum, first.ToPoleNum) > 0)
+                part2 = $"P{first.ToPoleNum}-{first.FromPoleNum}";
+            if (!string.IsNullOrEmpty(first.Substation?.SSNum))
+            {
+                part1 = $"{ReplaceMultipleSpaces(first.Substation.SSNum)}";
+                part2 = $"-L{ReplaceMultipleSpaces(first.FromCircuit.CircuitId)}";
+            }
+            else if (!string.IsNullOrEmpty(first.ToCircuit.CircuitId) && first.FromCircuit.CircuitId != first.ToCircuit.CircuitId)
+            {
+                if (first.FromCircuit.CircuitName.CompareTo(first.ToCircuit.CircuitName) > 0)
+                {
+                    part1 = $"L{ReplaceMultipleSpaces(first.ToCircuit.CircuitId)}";
+                    part2 = $"P{first.ToPoleNum}-L{ReplaceMultipleSpaces(first.FromCircuit.CircuitId)} P{first.FromPoleNum}";
+                }
+                else part2 = $"P{first.FromPoleNum}-L{ReplaceMultipleSpaces(first.ToCircuit.CircuitId)} P{first.ToPoleNum}";
+            }
+            part3 = $"L{objectID}";
+            return $"{(part1 + " " + part2).ToFixedLength(22)}{part3.ToFixedLength(8)}";
         }
 
         public static string GetADMSNameForSourceFuse(LVFeature_Model first)
         {
-            string part1 = ($"[{first.SUBNETWORKNAME}] {ReplaceMultipleSpaces(first.SS_NAME?.Replace("S/S", ""))}").PadRight(67);
-            string part2 = ($"D{first.TX_NO} CCT {first.CCT_NO}").PadRight(45);
-            string part3 = "LVFUSE".PadRight(10);
+            string part1 = ($"[{first.SUBNETWORKNAME}] {ReplaceMultipleSpaces(first.SS_NAME?.Replace("S/S", ""))}").ToFixedLength(67);
+            string part2 = ($"D{first.TX_NO} CCT {first.CCT_NO}").ToFixedLength(45);
+            string part3 = "LVFUSE".ToFixedLength(10);
             return $"{part1}{part2}{part3}";
         }
 
         public static string GetADMSAliasForSourceFuse(LVFeature_Model first)
         {
-            string part1 = ($"{first.SS_NUM}-{first.TX_NO}").PadRight(15);
-            string part2 = ($"CCT {first.CCT_NO}").PadRight(15);
-            string part3 = "LVFUSE".PadRight(10);
+            string part1 = ($"{first.SS_NUM}-{first.TX_NO}").ToFixedLength(15);
+            string part2 = ($"CCT {first.CCT_NO}").ToFixedLength(15);
+            string part3 = "LVFUSE".ToFixedLength(10);
             return $"{part1}{part2}{part3}";
         }
 
@@ -636,16 +738,16 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetADMSNameForLocalSupply(LVFeature_Model first)
         {
-            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SPSID} {ReplaceMultipleSpaces(first.ADDRESS)}").PadRight(101);
-            string part2 = "LocSP".PadRight(13);
+            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SPSID} {ReplaceMultipleSpaces(first.ADDRESS)}").ToFixedLength(101);
+            string part2 = "LocSP".ToFixedLength(13);
             return $"{part1}{part2}";
         }
 
         public static string GetADMSAliasForLocalSupply(LVFeature_Model first)
         {
-            string part1 = first.SPSID?.PadRight(15);
-            string part2 = ($"{first.SS_NUM}-{first.TX_NO}").PadRight(15);
-            string part3 = "LocSP".PadRight(10);
+            string part1 = first.SPSID?.ToFixedLength(15);
+            string part2 = ($"{first.SS_NUM}-{first.TX_NO}").ToFixedLength(15);
+            string part3 = "LocSP".ToFixedLength(10);
             return $"{part1}{part2}{part3}";
         }
 
@@ -657,46 +759,46 @@ namespace CLP.ADMSUpdatePlugin
                 var splitSubnetworkName = subnetworkname.Split('-');
                 if (splitSubnetworkName.Length >= 2) subnetworkname = splitSubnetworkName[0];
             }
-            string part1 = ($"[{subnetworkname}] {first.SPSID} {first.ADDRESS}").PadRight(99);
-            string part2 = "LVSP".PadRight(10);
+            string part1 = ($"[{subnetworkname}] {first.SPSID} {first.ADDRESS}").ToFixedLength(99);
+            string part2 = "LVSP".ToFixedLength(10);
             return $"{part1}{part2}";
         }
 
         public static string GetADMSAliasForSupplyPoint(LVFeature_Model first)
         {
-            string part1 = first.SPSID?.PadRight(15);
-            string part2 = ($"{first.SUBNETWORKNAME}").PadRight(15);
-            string part3 = "LVSP".PadRight(10);
+            string part1 = first.SPSID?.ToFixedLength(15);
+            string part2 = ($"{first.SUBNETWORKNAME}").ToFixedLength(15);
+            string part3 = "LVSP".ToFixedLength(10);
             return $"{part1}{part2}{part3}";
         }
 
         public static string GetADMSNameForPillar(LVFeature_Model first)
         {
-            string part1 = ($"{ReplaceMultipleSpaces(first.PR_NAME?.Replace("Pillar", ""))} PILLAR").PadRight(90);
-            string part2 = "LVPILLAR".PadRight(10);
+            string part1 = ($"{ReplaceMultipleSpaces(first.PR_NAME?.Replace("Pillar", ""))} PILLAR").ToFixedLength(90);
+            string part2 = "LVPILLAR".ToFixedLength(10);
             return $"{part1}{part2}";
         }
 
         public static string GetADMSAliasForPillar(LVFeature_Model first)
         {
-            string part1 = ($"{first.PR_NO?.PadLeft(5, '0')} PR").PadRight(30);
-            string part2 = "LVPILLAR".PadRight(10);
+            string part1 = ($"{first.PR_NO?.PadLeft(5, '0')} PR").ToFixedLength(30);
+            string part2 = "LVPILLAR".ToFixedLength(10);
             return $"{part1}{part2}";
         }
 
         public static string GetADMSNameForPillarFuse(LVFeature_Model first)
         {
-            string part1 = ($"[{first.SUBNETWORKNAME}] {ReplaceMultipleSpaces(first.PR_NAME?.Replace("Pillar", ""))} Pillar").PadRight(60);
-            string part2 = ($"CCT {first.CCT_NO}").PadRight(45);
-            string part3 = "LVFUSE".PadRight(10);
+            string part1 = ($"[{first.SUBNETWORKNAME}] {ReplaceMultipleSpaces(first.PR_NAME?.Replace("Pillar", ""))} Pillar").ToFixedLength(60);
+            string part2 = ($"CCT {first.CCT_NO}").ToFixedLength(45);
+            string part3 = "LVFUSE".ToFixedLength(10);
             return $"{part1}{part2}{part3}";
         }
 
         public static string GetADMSAliasForPillarFuse(LVFeature_Model first)
         {
-            string part1 = ($"{first.PR_NO?.PadLeft(5, '0')} PR").PadRight(15);
-            string part2 = ($"CCT {first.CCT_NO}").PadRight(15);
-            string part3 = "LVFUSE".PadRight(10);
+            string part1 = ($"{first.PR_NO?.PadLeft(5, '0')} PR").ToFixedLength(15);
+            string part2 = ($"CCT {first.CCT_NO}").ToFixedLength(15);
+            string part3 = "LVFUSE".ToFixedLength(10);
             return $"{part1}{part2}{part3}";
         }
 
@@ -712,17 +814,17 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetADMSNameForPoleSourceFuse(LVFeature_Model first)
         {
-            string part1 = ($"[{first.SUBNETWORKNAME}] {ReplaceMultipleSpaces(first.SS_NAME)}").PadRight(67);
-            string part2 = ($"D{first.TX_NO} CCT {first.CCT_NO}").PadRight(45);
-            string part3 = "LVFUSE".PadRight(10);
+            string part1 = ($"[{first.SUBNETWORKNAME}] {ReplaceMultipleSpaces(first.SS_NAME)}").ToFixedLength(67);
+            string part2 = ($"D{first.TX_NO} CCT {first.CCT_NO}").ToFixedLength(45);
+            string part3 = "LVFUSE".ToFixedLength(10);
             return $"{part1}{part2}{part3}";
         }
 
         public static string GetADMSAliasForPoleSourceFuse(LVFeature_Model first)
         {
-            string part1 = ($"{first.SS_NUM}-{first.TX_NO}").PadRight(15);
-            string part2 = ($"CCT {first.CCT_NO}").PadRight(15);
-            string part3 = "LVFUSE".PadRight(10);
+            string part1 = ($"{first.SS_NUM}-{first.TX_NO}").ToFixedLength(15);
+            string part2 = ($"CCT {first.CCT_NO}").ToFixedLength(15);
+            string part3 = "LVFUSE".ToFixedLength(10);
             return $"{part1}{part2}{part3}";
         }
 
@@ -738,17 +840,17 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetADMSNameForMotherSupplyPoint(LVFeature_Model first)
         {
-            string part1 = ($"[{first.SUBNETWORKNAME}] {ReplaceMultipleSpaces(first.SS_NAME)}").PadRight(57);
-            string part2 = ($"D{first.TX_NO} CCT {first.CCT_NO} P.{first.POLENUM}").PadRight(45);
-            string part3 = "LVFUSE".PadRight(10);
+            string part1 = ($"[{first.SUBNETWORKNAME}] {ReplaceMultipleSpaces(first.SS_NAME)}").ToFixedLength(57);
+            string part2 = ($"D{first.TX_NO} CCT {first.CCT_NO} P.{first.POLENUM}").ToFixedLength(45);
+            string part3 = "LVFUSE".ToFixedLength(10);
             return $"{part1}{part2}{part3}";
         }
 
         public static string GetADMSAliasForMotherSupplyPoint(LVFeature_Model first)
         {
-            string part1 = ($"{first.SS_NUM}-{first.TX_NO}{first.CCT_NO}-{first.POLENUM}").PadRight(15);
-            string part2 = ($"P.{first.POLENUM}").PadRight(15);
-            string part3 = "LVFUSE".PadRight(10);
+            string part1 = ($"{first.SS_NUM}-{first.TX_NO}{first.CCT_NO}-{first.POLENUM}").ToFixedLength(15);
+            string part2 = ($"P.{first.POLENUM}").ToFixedLength(15);
+            string part3 = "LVFUSE".ToFixedLength(10);
             return $"{part1}{part2}{part3}";
         }
 
@@ -764,31 +866,31 @@ namespace CLP.ADMSUpdatePlugin
 
         public static string GetADMSNameForLinkBox(LVFeature_Model first)
         {
-            string part1 = ($"{first.SPSID} {ReplaceMultipleSpaces(first.ADDRESS)}").PadRight(90);
-            string part2 = "LVSP".PadRight(10);
+            string part1 = ($"{first.SPSID} {ReplaceMultipleSpaces(first.ADDRESS)}").ToFixedLength(90);
+            string part2 = "LVSP".ToFixedLength(10);
             return $"{part1}{part2}";
         }
 
         public static string GetADMSAliasForLinkBox(LVFeature_Model first)
         {
-            string part1 = first.SPSID?.PadRight(15);
-            string part2 = first.SUBNETWORKNAME?.PadRight(15);
-            string part3 = "LVSP".PadRight(10);
+            string part1 = first.SPSID?.ToFixedLength(15);
+            string part2 = first.SUBNETWORKNAME?.ToFixedLength(15);
+            string part3 = "LVSP".ToFixedLength(10);
             return $"{part1}{part2}{part3}";
         }
 
         public static string GetADMSNameForLinkBoxLeg(LVFeature_Model first)
         {
-            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SPSID} {ReplaceMultipleSpaces(first.ADDRESS)}").PadRight(96);
-            string part2 = ($"LEG {first.LEG} LVLB LEG").PadRight(16);
+            string part1 = ($"[{first.SUBNETWORKNAME}] {first.SPSID} {ReplaceMultipleSpaces(first.ADDRESS)}").ToFixedLength(96);
+            string part2 = ($"LEG {first.LEG} LVLB LEG").ToFixedLength(16);
             return $"{part1}{part2}";
         }
 
         public static string GetADMSAliasForLinkBoxLeg(LVFeature_Model first)
         {
-            string part1 = first.SPSID?.PadRight(15);
-            string part2 = ($"LEG {first.LEG}").PadRight(15);
-            string part3 = "LVLB".PadRight(10);
+            string part1 = first.SPSID?.ToFixedLength(15);
+            string part2 = ($"LEG {first.LEG}").ToFixedLength(15);
+            string part3 = "LVLB".ToFixedLength(10);
             return $"{part1}{part2}{part3}";
         }
 

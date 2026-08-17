@@ -73,6 +73,19 @@ namespace CLP.ADMSUpdatePlugin
 
         public bool ShowCableFields => CableFeatures != null && CableFeatures.Count > 0;
 
+        private List<PoleCableInfo> _poleCableInfos;
+        public List<PoleCableInfo> PoleCableInfos
+        {
+            get => _poleCableInfos;
+            set
+            {
+                SetProperty(ref _poleCableInfos, value);
+                NotifyPropertyChanged(nameof(ShowPoleCableInfos));
+            }
+        }
+
+        public bool ShowPoleCableInfos => PoleCableInfos != null && PoleCableInfos.Count > 0;
+
         private PoleOptionList _toPoleNoOptions = new PoleOptionList();
         public PoleOptionList ToPoleNoOptions
         {
@@ -421,6 +434,7 @@ namespace CLP.ADMSUpdatePlugin
             this.Source = source;
             this.UtilityNetwork = utilityNetwork;
             this.ResetFieldFlags();
+            if (source == null) return;
             if (source.Attributes.ContainsKey("GLOBALID"))
             {
                 this.GLOBALID = source.Attributes["GLOBALID"]?.ToString();

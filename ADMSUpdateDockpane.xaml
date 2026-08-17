@@ -371,11 +371,71 @@
                                 <TextBlock Text="{Binding PoleDevice.SOMCCTLabel}" />
                                 <TextBox Text="{Binding SOMCCTDisplay,Mode=Default}" IsReadOnly="True"/>
                             </StackPanel>
-                            <StackPanel Orientation="Vertical" Visibility="{Binding PoleDevice.ShowCableFields,Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <TextBlock Text="Cable/OHL ADMS Name:" />
-                                <TextBox Text="{Binding CableADMSNameDisplay,Mode=Default}" IsReadOnly="True"/>
-                                <TextBlock Text="Cable/OHL ADMS Alias:" />
-                                <TextBox Text="{Binding CableADMSAliasDisplay,Mode=Default}" IsReadOnly="True"/>
+                            <StackPanel Orientation="Vertical" Visibility="{Binding PoleDevice.ShowPoleCableInfos,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="Pole Cables:" FontWeight="Bold" Margin="0,5,0,5"/>
+                                <ItemsControl ItemsSource="{Binding PoleDevice.PoleCableInfos}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="5" Padding="5" Margin="0,5,0,0"
+                                                    BorderBrush="#f1f1f1" BorderThickness="1">
+                                                <StackPanel Orientation="Vertical">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="Asset Type: "/>
+                                                        <TextBlock Text="{Binding CableAssetType,Mode=OneTime}"/>
+                                                    </StackPanel>
+                                                    <!--<StackPanel Orientation="Horizontal">
+                                                        <StackPanel Orientation="Vertical">
+                                                            <TextBlock Text="Pole No (From):"/>
+                                                            <TextBox Text="{Binding FromPoleNum,Mode=Default}" IsReadOnly="True"/>
+                                                        </StackPanel>
+                                                        <StackPanel Margin="10,0,0,0" Orientation="Vertical">
+                                                            <TextBlock Text="Pole No (To):"/>
+                                                            <TextBox Text="{Binding ToPoleNum,Mode=Default}" IsReadOnly="True"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <StackPanel Orientation="Vertical">
+                                                            <TextBlock Text="From Circuit Name:"/>
+                                                            <TextBox Text="{Binding FromCircuit.CircuitName,Mode=Default}" IsReadOnly="True"/>
+                                                        </StackPanel>
+                                                        <StackPanel Margin="10,0,0,0" Orientation="Vertical">
+                                                            <TextBlock Text="From Circuit ID:"/>
+                                                            <TextBox Text="{Binding FromCircuit.CircuitId,Mode=Default}" IsReadOnly="True"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <StackPanel Orientation="Vertical">
+                                                            <TextBlock Text="To Circuit Name:"/>
+                                                            <TextBox Text="{Binding ToCircuit.CircuitName,Mode=Default}" IsReadOnly="True"/>
+                                                        </StackPanel>
+                                                        <StackPanel Margin="10,0,0,0" Orientation="Vertical">
+                                                            <TextBlock Text="To Circuit ID:"/>
+                                                            <TextBox Text="{Binding ToCircuit.CircuitId,Mode=Default}" IsReadOnly="True"/>
+                                                        </StackPanel>
+                                                    </StackPanel> -->
+                                                <!--<StackPanel Orientation="Horizontal">
+                                                    <StackPanel Orientation="Vertical">
+                                                        <TextBlock Text="Substation Name:"/>
+                                                        <TextBox Text="{Binding Substation.SSName,Mode=Default}" IsReadOnly="True"/>
+                                                    </StackPanel>
+                                                    <StackPanel Margin="10,0,0,0" Orientation="Vertical">
+                                                        <TextBlock Text="Substation Num:"/>
+                                                        <TextBox Text="{Binding Substation.SSNum,Mode=Default}" IsReadOnly="True"/>
+                                                    </StackPanel>
+                                                </StackPanel>-->
+                                                <StackPanel Orientation="Vertical">
+                                                        <TextBlock Text="ADMS Name:"/>
+                                                        <TextBox Text="{Binding ADMSName,Mode=Default}" IsReadOnly="True"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Vertical">
+                                                        <TextBlock Text="ADMS Alias:"/>
+                                                        <TextBox Text="{Binding ADMSAlias,Mode=Default}" IsReadOnly="True"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
@@ -410,12 +470,43 @@
                         <StackPanel Grid.Row="1" Margin="5" Orientation="Vertical">
                             <StackPanel Orientation="Vertical">
                                 <TextBlock Text="Circuit Name:" />
-                                <TextBox Text="{Binding CABLE_CIRCUIT_NAME,Mode=Default}" IsReadOnly="False"/>
+                                <TextBox Text="{Binding CableModel.FromCircuit.CircuitName,Mode=Default}" IsReadOnly="False"/>
                             </StackPanel>
                             <StackPanel Orientation="Vertical">
                                 <TextBlock Text="Circuit ID:" />
-                                <TextBox Text="{Binding CABLE_CIRCUIT_ID,Mode=Default}" IsReadOnly="False"/>
+                                <TextBox Text="{Binding CableModel.FromCircuit.CircuitId,Mode=Default}" IsReadOnly="False"/>
                             </StackPanel>
+                            <!--<StackPanel Orientation="Vertical">
+                                <TextBlock Text="Asset Type:" />
+                                <TextBox Text="{Binding CableModel.CableAssetType,Mode=Default}" IsReadOnly="False"/>
+                            </StackPanel>-->
+                            <StackPanel Orientation="Horizontal">
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="Pole No(From):" />
+                                    <TextBox Text="{Binding CableModel.FromPoleNum,Mode=Default}" IsReadOnly="False"/>
+                                </StackPanel>
+                                <StackPanel Margin="10,0,0,0" Orientation="Vertical">
+                                    <TextBlock Text="Pole No (To):" />
+                                    <TextBox Text="{Binding CableModel.ToPoleNum,Mode=Default}" IsReadOnly="False"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="To Circuit Name:" />
+                                <TextBox Text="{Binding CableModel.ToCircuit.CircuitName,Mode=Default}" IsReadOnly="False"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="To Circuit ID:" />
+                                <TextBox Text="{Binding CableModel.ToCircuit.CircuitId,Mode=Default}" IsReadOnly="False"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="SS Name (Source):" />
+                                <TextBox Text="{Binding CableModel.Substation.SSName,Mode=Default}" IsReadOnly="False"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="SS Num (Source):" />
+                                <TextBox Text="{Binding CableModel.Substation.SSNum,Mode=Default}" IsReadOnly="False"/>
+                            </StackPanel>
+
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="ADMS Name:" />
                                 <Button Margin="10,0,0,2" Content="Preview"  Command="{Binding RefreshCommand}" ></Button>
