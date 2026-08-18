@@ -160,6 +160,7 @@ public static class UtilityNetworkTraceRunner
                 TraceCfgHelpers.AddCategoryBarrier(def, cfg, "E:Switch");
                 TraceCfgHelpers.AddAssetGroupBarriers(def, cfg, new[] { 61, 51 });
                 TraceCfgHelpers.AddLifeCycleBarriers(def, cfg, new[] { 0, 1, 3, 4 });
+                TraceCfgHelpers.AddNetworkAttributeBarrier(def, cfg, Operator.Equal, 550, "AssetType", "Asset Type");
                 break;
 
             case TraceBarrierPreset.HvFuse:
@@ -168,6 +169,7 @@ public static class UtilityNetworkTraceRunner
                     "Life Cycle Status", "Asset Type", "AssetType");
                 TraceCfgHelpers.AddLifeCycleBarriers(def, cfg, new[] { 0, 1, 3, 4 });
                 TraceCfgHelpers.AddAssetGroupBarriers(def, cfg, new[] { 61, 51 });
+                TraceCfgHelpers.AddNetworkAttributeBarrier(def, cfg, Operator.Equal, 550, "AssetType", "Asset Type");
                 break;
 
             case TraceBarrierPreset.HvSsToSs:
